@@ -35,7 +35,8 @@ fun HRDashboardScreen(
     onLogout: () -> Unit,
     onNavigateToEmployees: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToTasks: () -> Unit
+    onNavigateToTasks: () -> Unit,
+    onNavigateToLeaves: () -> Unit
 ) {
     val user by authViewModel.user.collectAsState(initial = null)
 
@@ -61,16 +62,16 @@ fun HRDashboardScreen(
             onClick = onNavigateToTasks
         ),
         DashboardCard(
+            title = "Leave Management",
+            icon = Icons.Default.BeachAccess,
+            color = Color(0xFFFF9800),
+            onClick = onNavigateToLeaves
+        ),
+        DashboardCard(
             title = "Attendance",
             icon = Icons.Default.Schedule,
             color = Color(0xFF2196F3),
             onClick = { /* TODO: Navigate to attendance */ }
-        ),
-        DashboardCard(
-            title = "Leave",
-            icon = Icons.Default.BeachAccess,
-            color = Color(0xFFFF9800),
-            onClick = { /* TODO: Navigate to leave */ }
         ),
         DashboardCard(
             title = "Meetings",
