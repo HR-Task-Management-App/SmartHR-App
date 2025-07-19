@@ -1,5 +1,8 @@
 package com.example.smarthr_app.presentation.screen.dashboard.employee
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,9 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.smarthr_app.presentation.screen.dashboard.hr.ProfileInfoRow
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
@@ -29,12 +34,39 @@ fun EmployeeProfileScreen(
     authViewModel: AuthViewModel,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToCompanyManagement: () -> Unit,
+    onNavigateBack: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
-    val user by authViewModel.user.collectAsState(initial = null) // Add initial value
+    val user by authViewModel.user.collectAsState(initial = null)
+    val uploadImageState by authViewModel.uploadImageState.collectAsState(initial = null)
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            authViewModel.uploadProfileImage(context, it)
+        }
+    }
+
+    // Handle image upload response
+    LaunchedEffect(uploadImageState) {
+        when (val state = uploadImageState) {
+            is Resource.Success -> {
+                ToastHelper.showSuccessToast(context, "Profile image updated successfully!")
+                authViewModel.clearUploadImageState()
+                authViewModel.refreshProfile()
+            }
+            is Resource.Error -> {
+                ToastHelper.showErrorToast(context, "Failed to upload image: ${state.message}")
+                authViewModel.clearUploadImageState()
+            }
+            else -> {}
+        }
+    }
 
     // Refresh profile data on screen load
     LaunchedEffect(Unit) {
@@ -47,7 +79,7 @@ fun EmployeeProfileScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
-        // Top Bar
+        // Top Bar with Back Button
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = PrimaryPurple),
@@ -61,12 +93,24 @@ fun EmployeeProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Profile",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Profile",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 IconButton(onClick = { showLogoutDialog = true }) {
                     Icon(
@@ -98,20 +142,61 @@ fun EmployeeProfileScreen(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Profile Picture
+                    // Profile Picture with upload option
                     Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryPurple.copy(alpha = 0.1f)),
+                        modifier = Modifier.size(100.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(40.dp),
-                            tint = PrimaryPurple
-                        )
+                        if (!user?.imageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = user?.imageUrl,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                                    .background(PrimaryPurple.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    modifier = Modifier.size(50.dp),
+                                    tint = PrimaryPurple
+                                )
+                            }
+                        }
+
+                        // Camera icon for upload
+                        Box(
+                            modifier = Modifier.align(Alignment.BottomEnd)
+                        ) {
+                            FloatingActionButton(
+                                onClick = { imagePickerLauncher.launch("image/*") },
+                                modifier = Modifier.size(32.dp),
+                                containerColor = PrimaryPurple,
+                                contentColor = Color.White
+                            ) {
+                                if (uploadImageState is Resource.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Upload Photo",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

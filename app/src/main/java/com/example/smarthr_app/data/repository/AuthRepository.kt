@@ -1,12 +1,19 @@
 package com.example.smarthr_app.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.example.smarthr_app.data.local.DataStoreManager
 import com.example.smarthr_app.data.model.*
 import com.example.smarthr_app.data.remote.RetrofitInstance
 import com.example.smarthr_app.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 
 class AuthRepository(private val dataStoreManager: DataStoreManager) {
 
@@ -22,25 +29,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                     return login(loginRequest)
                 } ?: Resource.Error("Registration successful but no user data received")
             } else {
-                val errorMessage = try {
-                    val errorBody = response.errorBody()?.string()
-                    if (errorBody != null) {
-                        try {
-                            val jsonObject = JSONObject(errorBody)
-                            when {
-                                jsonObject.has("message") -> jsonObject.getString("message")
-                                jsonObject.has("error") -> jsonObject.getString("error")
-                                else -> getDefaultErrorMessage(response.code())
-                            }
-                        } catch (e: Exception) {
-                            getDefaultErrorMessage(response.code())
-                        }
-                    } else {
-                        getDefaultErrorMessage(response.code())
-                    }
-                } catch (e: Exception) {
-                    getDefaultErrorMessage(response.code())
-                }
+                val errorMessage = parseErrorMessage(response.errorBody()?.string(), response.code())
                 Resource.Error(errorMessage)
             }
         } catch (e: Exception) {
@@ -72,25 +61,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                     Resource.Success(authResponse)
                 } ?: Resource.Error("Login successful but no data received")
             } else {
-                val errorMessage = try {
-                    val errorBody = response.errorBody()?.string()
-                    if (errorBody != null) {
-                        try {
-                            val jsonObject = JSONObject(errorBody)
-                            when {
-                                jsonObject.has("message") -> jsonObject.getString("message")
-                                jsonObject.has("error") -> jsonObject.getString("error")
-                                else -> getLoginErrorMessage(response.code())
-                            }
-                        } catch (e: Exception) {
-                            getLoginErrorMessage(response.code())
-                        }
-                    } else {
-                        getLoginErrorMessage(response.code())
-                    }
-                } catch (e: Exception) {
-                    getLoginErrorMessage(response.code())
-                }
+                val errorMessage = parseErrorMessage(response.errorBody()?.string(), response.code(), isLogin = true)
                 Resource.Error(errorMessage)
             }
         } catch (e: Exception) {
@@ -105,22 +76,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 val response = RetrofitInstance.api.getUserProfile("Bearer $token")
                 if (response.isSuccessful) {
                     response.body()?.let { userDto ->
-                        // Update local user data
-                        val user = User(
-                            userId = userDto.userId,
-                            name = userDto.name,
-                            email = userDto.email,
-                            phone = userDto.phone,
-                            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
-                            companyCode = userDto.companyCode,
-                            imageUrl = userDto.imageUrl,
-                            gender = userDto.gender,
-                            position = userDto.position,
-                            department = userDto.department,
-                            waitingCompanyCode = userDto.waitingCompanyCode,
-                            joiningStatus = userDto.joiningStatus
-                        )
-                        dataStoreManager.saveUser(user)
+                        updateLocalUser(userDto)
                         Resource.Success(userDto)
                     } ?: Resource.Error("No user data received")
                 } else {
@@ -141,21 +97,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 val response = RetrofitInstance.api.updateProfile("Bearer $token", request)
                 if (response.isSuccessful) {
                     response.body()?.let { userDto ->
-                        val user = User(
-                            userId = userDto.userId,
-                            name = userDto.name,
-                            email = userDto.email,
-                            phone = userDto.phone,
-                            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
-                            companyCode = userDto.companyCode,
-                            imageUrl = userDto.imageUrl,
-                            gender = userDto.gender,
-                            position = userDto.position,
-                            department = userDto.department,
-                            waitingCompanyCode = userDto.waitingCompanyCode,
-                            joiningStatus = userDto.joiningStatus
-                        )
-                        dataStoreManager.saveUser(user)
+                        updateLocalUser(userDto)
                         Resource.Success(userDto)
                     } ?: Resource.Error("Update successful but no user data received")
                 } else {
@@ -169,6 +111,50 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
         }
     }
 
+    suspend fun uploadProfileImage(context: Context, imageUri: Uri): Resource<UserDto> {
+        return try {
+            val token = dataStoreManager.token.first()
+            if (token != null) {
+                // Convert URI to File
+                val file = createImageFile(context, imageUri)
+                val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)
+
+                val response = RetrofitInstance.api.uploadProfileImage("Bearer $token", imagePart)
+
+                // Clean up temporary file
+                file.delete()
+
+                if (response.isSuccessful) {
+                    response.body()?.let { userDto ->
+                        updateLocalUser(userDto)
+                        Resource.Success(userDto)
+                    } ?: Resource.Error("Upload successful but no user data received")
+                } else {
+                    Resource.Error("Failed to upload image: ${response.message()}")
+                }
+            } else {
+                Resource.Error("No authentication token found")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Failed to upload image: ${e.message}")
+        }
+    }
+
+    private fun createImageFile(context: Context, uri: Uri): File {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val tempFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(tempFile)
+
+        inputStream?.use { input ->
+            outputStream.use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        return tempFile
+    }
+
     suspend fun updateCompanyCode(companyCode: String): Resource<UserDto> {
         return try {
             val token = dataStoreManager.token.first()
@@ -176,25 +162,12 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 val response = RetrofitInstance.api.updateCompanyCode("Bearer $token", companyCode)
                 if (response.isSuccessful) {
                     response.body()?.let { userDto ->
-                        val user = User(
-                            userId = userDto.userId,
-                            name = userDto.name,
-                            email = userDto.email,
-                            phone = userDto.phone,
-                            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
-                            companyCode = userDto.companyCode,
-                            imageUrl = userDto.imageUrl,
-                            gender = userDto.gender,
-                            position = userDto.position,
-                            department = userDto.department,
-                            waitingCompanyCode = userDto.waitingCompanyCode,
-                            joiningStatus = userDto.joiningStatus
-                        )
-                        dataStoreManager.saveUser(user)
+                        updateLocalUser(userDto)
                         Resource.Success(userDto)
                     } ?: Resource.Error("Update successful but no user data received")
                 } else {
-                    Resource.Error("Failed to update company code: ${response.message()}")
+                    val errorMessage = parseErrorMessage(response.errorBody()?.string(), response.code())
+                    Resource.Error(errorMessage)
                 }
             } else {
                 Resource.Error("No authentication token found")
@@ -211,21 +184,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 val response = RetrofitInstance.api.leaveCompany("Bearer $token")
                 if (response.isSuccessful) {
                     response.body()?.let { userDto ->
-                        val user = User(
-                            userId = userDto.userId,
-                            name = userDto.name,
-                            email = userDto.email,
-                            phone = userDto.phone,
-                            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
-                            companyCode = userDto.companyCode,
-                            imageUrl = userDto.imageUrl,
-                            gender = userDto.gender,
-                            position = userDto.position,
-                            department = userDto.department,
-                            waitingCompanyCode = userDto.waitingCompanyCode,
-                            joiningStatus = userDto.joiningStatus
-                        )
-                        dataStoreManager.saveUser(user)
+                        updateLocalUser(userDto)
                         Resource.Success(userDto)
                     } ?: Resource.Error("Leave successful but no user data received")
                 } else {
@@ -246,21 +205,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 val response = RetrofitInstance.api.removeWaitlistCompany("Bearer $token")
                 if (response.isSuccessful) {
                     response.body()?.let { userDto ->
-                        val user = User(
-                            userId = userDto.userId,
-                            name = userDto.name,
-                            email = userDto.email,
-                            phone = userDto.phone,
-                            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
-                            companyCode = userDto.companyCode,
-                            imageUrl = userDto.imageUrl,
-                            gender = userDto.gender,
-                            position = userDto.position,
-                            department = userDto.department,
-                            waitingCompanyCode = userDto.waitingCompanyCode,
-                            joiningStatus = userDto.joiningStatus
-                        )
-                        dataStoreManager.saveUser(user)
+                        updateLocalUser(userDto)
                         Resource.Success(userDto)
                     } ?: Resource.Error("Remove successful but no user data received")
                 } else {
@@ -274,6 +219,41 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
         }
     }
 
+    private suspend fun updateLocalUser(userDto: UserDto) {
+        val user = User(
+            userId = userDto.userId,
+            name = userDto.name,
+            email = userDto.email,
+            phone = userDto.phone,
+            role = if (userDto.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
+            companyCode = userDto.companyCode,
+            imageUrl = userDto.imageUrl,
+            gender = userDto.gender,
+            position = userDto.position,
+            department = userDto.department,
+            waitingCompanyCode = userDto.waitingCompanyCode,
+            joiningStatus = userDto.joiningStatus
+        )
+        dataStoreManager.saveUser(user)
+    }
+
+    private fun parseErrorMessage(errorBody: String?, statusCode: Int, isLogin: Boolean = false): String {
+        return try {
+            if (errorBody != null) {
+                val jsonObject = JSONObject(errorBody)
+                when {
+                    jsonObject.has("message") -> jsonObject.getString("message")
+                    jsonObject.has("error") -> jsonObject.getString("error")
+                    else -> if (isLogin) getLoginErrorMessage(statusCode) else getDefaultErrorMessage(statusCode)
+                }
+            } else {
+                if (isLogin) getLoginErrorMessage(statusCode) else getDefaultErrorMessage(statusCode)
+            }
+        } catch (e: Exception) {
+            if (isLogin) getLoginErrorMessage(statusCode) else getDefaultErrorMessage(statusCode)
+        }
+    }
+
     private fun getDefaultErrorMessage(statusCode: Int): String {
         return when (statusCode) {
             400 -> "Invalid input data provided"
@@ -281,7 +261,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
             409 -> "Account with this email already exists"
             422 -> "Company code does not exist"
             500 -> "Server error. Please try again later."
-            else -> "Registration failed. Please try again."
+            else -> "Request failed. Please try again."
         }
     }
 

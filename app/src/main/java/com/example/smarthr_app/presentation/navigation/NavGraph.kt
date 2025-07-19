@@ -19,6 +19,14 @@ import com.example.smarthr_app.presentation.screen.profile.EditProfileScreen
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.presentation.viewmodel.CompanyViewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.smarthr_app.data.repository.TaskRepository
+import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeTaskDetailScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateTaskScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.HRTaskManagementScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDetailScreen
+import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @Composable
 fun NavGraph(
@@ -29,9 +37,11 @@ fun NavGraph(
     val dataStoreManager = DataStoreManager(context)
     val authRepository = AuthRepository(dataStoreManager)
     val companyRepository = CompanyRepository(dataStoreManager)
+    val taskRepository = TaskRepository(dataStoreManager)
 
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(authRepository) }
     val companyViewModel: CompanyViewModel = viewModel { CompanyViewModel(companyRepository) }
+    val taskViewModel: TaskViewModel = viewModel { TaskViewModel(taskRepository) }
 
     NavHost(
         navController = navController,
@@ -110,6 +120,85 @@ fun NavGraph(
                 },
                 onNavigateToProfile = {
                     navController.navigate(Screen.HRProfile.route)
+                },
+                onNavigateToTasks = {
+                    navController.navigate(Screen.HRTaskManagement.route)
+                }
+            )
+        }
+
+        // HR Task Management Routes
+        composable(Screen.HRTaskManagement.route) {
+            HRTaskManagementScreen(
+                taskViewModel = taskViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToCreateTask = {
+                    navController.navigate(Screen.CreateTask.route)
+                },
+                onNavigateToTaskDetail = { taskId ->
+                    navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                },
+                onNavigateToEditTask = { taskId ->
+                    navController.navigate(Screen.EditTask.createRoute(taskId))
+                }
+            )
+        }
+
+        composable(Screen.CreateTask.route) {
+            CreateTaskScreen(
+                taskViewModel = taskViewModel,
+                companyViewModel = companyViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TaskDetail.route,
+            arguments = Screen.TaskDetail.arguments
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            TaskDetailScreen(
+                taskId = taskId,
+                taskViewModel = taskViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToEdit = { taskId ->
+                    navController.navigate(Screen.EditTask.createRoute(taskId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.EditTask.route,
+            arguments = Screen.EditTask.arguments
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            CreateTaskScreen(
+                taskViewModel = taskViewModel,
+                companyViewModel = companyViewModel,
+                taskId = taskId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Employee Task Routes
+        composable(
+            route = Screen.EmployeeTaskDetail.route,
+            arguments = Screen.EmployeeTaskDetail.arguments
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            EmployeeTaskDetailScreen(
+                taskId = taskId,
+                taskViewModel = taskViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -119,6 +208,9 @@ fun NavGraph(
                 authViewModel = authViewModel,
                 onNavigateToEditProfile = {
                     navController.navigate(Screen.EditProfile.route)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 },
                 onLogout = {
                     authViewModel.logout()
@@ -143,6 +235,7 @@ fun NavGraph(
         composable(Screen.EmployeeDashboard.route) {
             EmployeeDashboardScreen(
                 authViewModel = authViewModel,
+                taskViewModel = taskViewModel,
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.RoleSelection.route) {
@@ -153,6 +246,9 @@ fun NavGraph(
                 },
                 onNavigateToProfile = {
                     navController.navigate(Screen.EmployeeProfile.route)
+                },
+                onNavigateToTaskDetail = { taskId ->
+                    navController.navigate(Screen.EmployeeTaskDetail.createRoute(taskId))
                 }
             )
         }
@@ -165,6 +261,9 @@ fun NavGraph(
                 },
                 onNavigateToCompanyManagement = {
                     navController.navigate(Screen.CompanyManagement.route)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 },
                 onLogout = {
                     authViewModel.logout()
@@ -208,4 +307,29 @@ sealed class Screen(val route: String) {
     object EmployeeProfile : Screen("employee_profile")
     object EditProfile : Screen("edit_profile")
     object CompanyManagement : Screen("company_management")
+
+    // Task Management Routes
+    object HRTaskManagement : Screen("hr_task_management")
+    object CreateTask : Screen("create_task")
+
+    object TaskDetail : Screen("task_detail/{taskId}") {
+        fun createRoute(taskId: String) = "task_detail/$taskId"
+        val arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType }
+        )
+    }
+
+    object EditTask : Screen("edit_task/{taskId}") {
+        fun createRoute(taskId: String) = "edit_task/$taskId"
+        val arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType }
+        )
+    }
+
+    object EmployeeTaskDetail : Screen("employee_task_detail/{taskId}") {
+        fun createRoute(taskId: String) = "employee_task_detail/$taskId"
+        val arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType }
+        )
+    }
 }

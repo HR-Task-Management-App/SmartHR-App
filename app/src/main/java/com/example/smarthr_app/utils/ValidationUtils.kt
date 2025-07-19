@@ -34,14 +34,13 @@ object ValidationUtils {
         }
     }
 
+    // Updated password validation to match backend pattern
     fun validatePassword(password: String): ValidationResult {
         return when {
             password.isBlank() -> ValidationResult(false, "Password is required")
-            password.length < 8 -> ValidationResult(false, "Password must be at least 8 characters")
-            !password.matches(Regex(".*[A-Z].*")) -> ValidationResult(false, "Password must contain at least one uppercase letter (A-Z)")
-            !password.matches(Regex(".*[a-z].*")) -> ValidationResult(false, "Password must contain at least one lowercase letter (a-z)")
-            !password.matches(Regex(".*[0-9].*")) -> ValidationResult(false, "Password must contain at least one number (0-9)")
-            !password.matches(Regex(".*[!@#\$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) -> ValidationResult(false, "Password must contain at least one special character (!@#\$%^&*()_+-=[]{}|;':\"\\,.<>/?)")
+            password.length < 6 -> ValidationResult(false, "Password must be at least 6 characters")
+            !password.matches(Regex("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@#\$%^&+=!]{6,}$")) ->
+                ValidationResult(false, "Password must include letters and numbers")
             else -> ValidationResult(true, "")
         }
     }

@@ -18,6 +18,7 @@ import com.example.smarthr_app.presentation.navigation.NavGraph
 import com.example.smarthr_app.presentation.navigation.Screen
 import com.example.smarthr_app.presentation.theme.SmartHRTheme
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,31 +45,37 @@ fun SmartHRApp() {
     val authRepository = AuthRepository(dataStoreManager)
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(authRepository) }
 
-    val user by authViewModel.user.collectAsState(initial = null)
-    val isLoggedIn by authViewModel.isLoggedIn.collectAsState(initial = false)
-
-    var startDestination by remember { mutableStateOf(Screen.RoleSelection.route) }
+    var startDestination by remember { mutableStateOf<String?>(null) }
     var isInitialized by remember { mutableStateOf(false) }
 
-    // Determine start destination based on auth state
-    LaunchedEffect(isLoggedIn, user) {
-        startDestination = when {
-            isLoggedIn && user != null -> {
-                when (user!!.role) {
-                    com.example.smarthr_app.data.model.UserRole.ROLE_HR -> Screen.HRDashboard.route
-                    com.example.smarthr_app.data.model.UserRole.ROLE_USER -> Screen.EmployeeDashboard.route
+    // Determine start destination based on auth state with delay to check persistence
+    LaunchedEffect(Unit) {
+        // Add small delay to ensure DataStore is properly loaded
+        delay(100)
+
+        authRepository.isLoggedIn.collect { isLoggedIn ->
+            if (isLoggedIn) {
+                authRepository.user.collect { user ->
+                    startDestination = when (user?.role) {
+                        com.example.smarthr_app.data.model.UserRole.ROLE_HR -> Screen.HRDashboard.route
+                        com.example.smarthr_app.data.model.UserRole.ROLE_USER -> Screen.EmployeeDashboard.route
+                        else -> Screen.RoleSelection.route
+                    }
+                    isInitialized = true
+                    return@collect
                 }
+            } else {
+                startDestination = Screen.RoleSelection.route
+                isInitialized = true
             }
-            else -> Screen.RoleSelection.route
         }
-        isInitialized = true
     }
 
     // Only show NavGraph after determining the correct start destination
-    if (isInitialized) {
+    if (isInitialized && startDestination != null) {
         NavGraph(
             navController = navController,
-            startDestination = startDestination
+            startDestination = startDestination!!
         )
     }
 }

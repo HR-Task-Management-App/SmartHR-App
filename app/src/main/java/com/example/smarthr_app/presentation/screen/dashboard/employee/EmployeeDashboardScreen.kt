@@ -17,15 +17,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmployeeDashboardScreen(
     authViewModel: AuthViewModel,
+    taskViewModel: TaskViewModel,
     onLogout: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit
 ) {
-    val user by authViewModel.user.collectAsState(initial = null) // Add initial parameter
+    val user by authViewModel.user.collectAsState(initial = null)
     var selectedTabIndex by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
@@ -77,7 +80,10 @@ fun EmployeeDashboardScreen(
             when (selectedTabIndex) {
                 0 -> HomeTab(user = user, authViewModel = authViewModel, onNavigateToProfile = onNavigateToProfile)
                 1 -> AttendanceTab()
-                2 -> TasksTab()
+                2 -> EmployeeTaskScreen(
+                    taskViewModel = taskViewModel,
+                    onNavigateToTaskDetail = onNavigateToTaskDetail
+                )
                 3 -> LeaveTab()
             }
         }

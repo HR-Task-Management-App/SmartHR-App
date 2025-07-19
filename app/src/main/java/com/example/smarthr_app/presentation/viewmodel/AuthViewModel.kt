@@ -1,5 +1,7 @@
 package com.example.smarthr_app.presentation.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smarthr_app.data.model.*
@@ -24,6 +26,9 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _leaveCompanyState = MutableStateFlow<Resource<UserDto>?>(null)
     val leaveCompanyState: StateFlow<Resource<UserDto>?> = _leaveCompanyState
+
+    private val _uploadImageState = MutableStateFlow<Resource<UserDto>?>(null)
+    val uploadImageState: StateFlow<Resource<UserDto>?> = _uploadImageState
 
     val user: Flow<User?> = authRepository.user
     val isLoggedIn: Flow<Boolean> = authRepository.isLoggedIn
@@ -52,6 +57,13 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _updateProfileState.value = Resource.Loading()
             _updateProfileState.value = authRepository.updateProfile(request)
+        }
+    }
+
+    fun uploadProfileImage(context: Context, imageUri: Uri) {
+        viewModelScope.launch {
+            _uploadImageState.value = Resource.Loading()
+            _uploadImageState.value = authRepository.uploadProfileImage(context, imageUri)
         }
     }
 
@@ -100,5 +112,9 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     fun clearLeaveCompanyState() {
         _leaveCompanyState.value = null
+    }
+
+    fun clearUploadImageState() {
+        _uploadImageState.value = null
     }
 }

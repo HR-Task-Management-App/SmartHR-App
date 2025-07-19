@@ -240,7 +240,7 @@ fun EmployeeManagementScreen(
             },
             text = {
                 Text(
-                    text = "Are you sure you want to remove ${employeeToRemove?.name} from your company? This action cannot be undone.",
+                    text = "Are you sure you want to remove ${employeeToRemove?.name ?: "this employee"} from your company? This action cannot be undone.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -322,7 +322,7 @@ fun PendingEmployeeItem(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = employee.name,
+                        text = employee.name ?: "Unknown",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -330,44 +330,47 @@ fun PendingEmployeeItem(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Email,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = employee.email,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = employee.phone,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (!employee.position.isNullOrBlank()) {
+                    employee.email?.let { email ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    employee.phone?.let { phone ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = phone,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    employee.position?.let { position ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -379,15 +382,15 @@ fun PendingEmployeeItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = employee.position!!,
+                                text = position,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
 
-                    if (!employee.department.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                    employee.department?.let { department ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -399,11 +402,12 @@ fun PendingEmployeeItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = employee.department!!,
+                                text = department,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -523,7 +527,7 @@ fun ApprovedEmployeeItem(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = employee.name,
+                            text = employee.name ?: "Unknown",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -539,44 +543,47 @@ fun ApprovedEmployeeItem(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Email,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = employee.email,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = employee.phone,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (!employee.position.isNullOrBlank()) {
+                    employee.email?.let { email ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    employee.phone?.let { phone ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = phone,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    employee.position?.let { position ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -588,15 +595,15 @@ fun ApprovedEmployeeItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = employee.position!!,
+                                text = position,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
 
-                    if (!employee.department.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                    employee.department?.let { department ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -608,11 +615,12 @@ fun ApprovedEmployeeItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = employee.department!!,
+                                text = department,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

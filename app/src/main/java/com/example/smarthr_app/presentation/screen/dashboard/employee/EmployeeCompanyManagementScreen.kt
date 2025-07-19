@@ -38,16 +38,31 @@ fun EmployeeCompanyManagementScreen(
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showRemoveWaitlistDialog by remember { mutableStateOf(false) }
 
-    // Handle API responses
+    // Handle API responses with specific messages
     LaunchedEffect(updateCompanyState) {
         when (val state = updateCompanyState) {
             is Resource.Success -> {
-                ToastHelper.showSuccessToast(context, "Company code updated successfully!")
+                // Check if user now has waitingCompanyCode or companyCode
+                if (state.data.waitingCompanyCode != null && state.data.companyCode == null) {
+                    ToastHelper.showSuccessToast(context, "Company code submitted! Wait for HR approval.")
+                } else if (state.data.companyCode != null) {
+                    ToastHelper.showSuccessToast(context, "Company code updated successfully!")
+                }
                 authViewModel.clearUpdateCompanyState()
                 authViewModel.refreshProfile()
+                companyCode = "" // Clear the input field
             }
             is Resource.Error -> {
-                ToastHelper.showErrorToast(context, state.message)
+                when {
+                    state.message.contains("does not exist", ignoreCase = true) ||
+                            state.message.contains("not found", ignoreCase = true) ||
+                            state.message.contains("invalid", ignoreCase = true) -> {
+                        ToastHelper.showErrorToast(context, "Company code not found. Please check and try again.")
+                    }
+                    else -> {
+                        ToastHelper.showErrorToast(context, state.message)
+                    }
+                }
                 authViewModel.clearUpdateCompanyState()
             }
             else -> {}
