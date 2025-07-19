@@ -135,4 +135,42 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("taskId") taskId: String
     ): Response<List<CommentResponse>>
+
+    // Leave endpoints
+    @POST("leaves")
+    suspend fun submitLeaveRequest(
+        @Header("Authorization") token: String,
+        @Body request: LeaveRequestDto
+    ): Response<EmployeeLeaveResponseDto>
+
+    @GET("leaves")
+    suspend fun getEmployeeLeaves(
+        @Header("Authorization") token: String
+    ): Response<List<EmployeeLeaveResponseDto>>
+
+    @GET("leaves/company")
+    suspend fun getCompanyLeaves(
+        @Header("Authorization") token: String
+    ): Response<List<HRLeaveResponseDto>>
+
+    @POST("leaves/{leaveId}")
+    suspend fun updateLeaveRequest(
+        @Header("Authorization") token: String,
+        @Path("leaveId") leaveId: String,
+        @Body request: LeaveRequestDto
+    ): Response<EmployeeLeaveResponseDto>
+
+    @POST("leaves/status/{leaveId}/{status}")
+    suspend fun updateLeaveStatus(
+        @Header("Authorization") token: String,
+        @Path("leaveId") leaveId: String,
+        @Path("status") status: String
+    ): Response<SuccessApiResponseMessage>
+
+    @POST("leaves/response/{leaveId}")
+    suspend fun removeHRResponse(
+        @Header("Authorization") token: String,
+        @Path("leaveId") leaveId: String
+    ): Response<SuccessApiResponseMessage>
+
 }

@@ -21,11 +21,14 @@ import com.example.smarthr_app.presentation.viewmodel.CompanyViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.smarthr_app.data.repository.LeaveRepository
 import com.example.smarthr_app.data.repository.TaskRepository
 import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeTaskDetailScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateTaskScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.HRLeaveManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRTaskManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDetailScreen
+import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @Composable
@@ -42,6 +45,9 @@ fun NavGraph(
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(authRepository) }
     val companyViewModel: CompanyViewModel = viewModel { CompanyViewModel(companyRepository) }
     val taskViewModel: TaskViewModel = viewModel { TaskViewModel(taskRepository) }
+
+    val leaveRepository = LeaveRepository(dataStoreManager)
+    val leaveViewModel: LeaveViewModel = viewModel { LeaveViewModel(leaveRepository) }
 
     NavHost(
         navController = navController,
@@ -123,6 +129,9 @@ fun NavGraph(
                 },
                 onNavigateToTasks = {
                     navController.navigate(Screen.HRTaskManagement.route)
+                },
+                onNavigateToLeaves = {
+                    navController.navigate(Screen.HRLeaveManagement.route)
                 }
             )
         }
@@ -236,6 +245,7 @@ fun NavGraph(
             EmployeeDashboardScreen(
                 authViewModel = authViewModel,
                 taskViewModel = taskViewModel,
+                leaveViewModel = leaveViewModel,
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.RoleSelection.route) {
@@ -293,6 +303,16 @@ fun NavGraph(
                 }
             )
         }
+
+        composable(Screen.HRLeaveManagement.route) {
+            HRLeaveManagementScreen(
+                leaveViewModel = leaveViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
     }
 }
 
@@ -332,4 +352,7 @@ sealed class Screen(val route: String) {
             navArgument("taskId") { type = NavType.StringType }
         )
     }
+
+    object HRLeaveManagement : Screen("hr_leave_management")
+
 }

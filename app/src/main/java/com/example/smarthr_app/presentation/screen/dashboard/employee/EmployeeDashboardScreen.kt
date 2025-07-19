@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,6 +25,7 @@ import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 fun EmployeeDashboardScreen(
     authViewModel: AuthViewModel,
     taskViewModel: TaskViewModel,
+    leaveViewModel: LeaveViewModel,
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToTaskDetail: (String) -> Unit
@@ -84,7 +86,7 @@ fun EmployeeDashboardScreen(
                     taskViewModel = taskViewModel,
                     onNavigateToTaskDetail = onNavigateToTaskDetail
                 )
-                3 -> LeaveTab()
+                3 -> EmployeeLeaveScreen(leaveViewModel = leaveViewModel)
             }
         }
     }
