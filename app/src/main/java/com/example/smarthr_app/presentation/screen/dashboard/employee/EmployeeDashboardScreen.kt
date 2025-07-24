@@ -13,16 +13,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmployeeDashboardScreen(
+    chatViewModel: ChatViewModel,
     authViewModel: AuthViewModel,
     taskViewModel: TaskViewModel,
     leaveViewModel: LeaveViewModel,
@@ -30,8 +33,34 @@ fun EmployeeDashboardScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToTaskDetail: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val user by authViewModel.user.collectAsState(initial = null)
     var selectedTabIndex by remember { mutableStateOf(0) }
+//    var lastMessage by remember { mutableStateOf("") }
+//    var lastStatus by remember { mutableStateOf("") }
+
+//    LaunchedEffect(user, Unit) {
+//        user?.let {
+//            chatViewModel.initSocket(it.userId)
+//            chatViewModel.getMyChatList("XrI376o")
+//        }
+//    }
+
+//    val messages by chatViewModel.messages.collectAsState()
+//    val chatList by chatViewModel.chatList.collectAsState()
+//    Log.d("ChatList",chatList.toString() + " ${user?.userId.toString()}")
+//    LaunchedEffect(messages.size) {
+//        messages.isNotEmpty().let{
+//            if(it) {
+//                val chatMessage = messages[messages.size-1]
+////                chatViewModel.getMyChatList("XrI376o")
+//                lastMessage = chatMessage.content
+//                showNotification(context,"Message from "+chatMessage.sender.name,chatMessage.content)
+//            }
+//        }
+//    }
+
+
 
     LaunchedEffect(Unit) {
         authViewModel.user.collect { currentUser ->
@@ -58,6 +87,7 @@ fun EmployeeDashboardScreen(
                                 1 -> Icon(Icons.Default.Schedule, contentDescription = tab)
                                 2 -> Icon(Icons.Default.Assignment, contentDescription = tab)
                                 3 -> Icon(Icons.Default.BeachAccess, contentDescription = tab)
+                                4 -> Icon(Icons.Default.Chat, contentDescription = tab)
                             }
                         },
                         label = { Text(tab) },
@@ -80,7 +110,7 @@ fun EmployeeDashboardScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (selectedTabIndex) {
-                0 -> HomeTab(user = user, authViewModel = authViewModel, onNavigateToProfile = onNavigateToProfile)
+                0 -> HomeTab(user = user, authViewModel = authViewModel, onNavigateToProfile = onNavigateToProfile,chatViewModel)
                 1 -> AttendanceTab()
                 2 -> EmployeeTaskScreen(
                     taskViewModel = taskViewModel,
@@ -96,7 +126,8 @@ fun EmployeeDashboardScreen(
 fun HomeTab(
     user: com.example.smarthr_app.data.model.User?,
     authViewModel: AuthViewModel,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    chatViewModel: ChatViewModel
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -305,6 +336,13 @@ fun HomeTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    Button(
+                        onClick = {
+                            chatViewModel.sendMessage("687c94eb2103758e56b81f71","687c94a52103758e56b81f6f","Hii How are you?","XrI376o","TEXT");
+                        }
+                    ) {
+                        Text("Send Message")
+                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {

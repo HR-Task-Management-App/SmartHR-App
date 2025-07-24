@@ -1,8 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
     id("kotlin-parcelize")
+    alias(libs.plugins.kotlin.ksp)
 }
 
 android {
@@ -94,5 +96,14 @@ dependencies {
 
     // Image loading with Coil
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    //websocket
+    implementation("com.squareup.okhttp3:okhttp:5.1.0")
+
+    //room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
 }

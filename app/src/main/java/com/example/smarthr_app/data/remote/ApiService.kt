@@ -173,4 +173,29 @@ interface ApiService {
         @Path("leaveId") leaveId: String
     ): Response<SuccessApiResponseMessage>
 
+    @GET("chats/myChats")
+    suspend fun getMyChatList(
+        @Header("Authorization") token: String,
+        @Query("companyCode") companyCode: String
+        ) : Response<List<Chat>>
+
+    @GET("companies/everybody")
+    suspend fun getAllHrAndEmployeeOfCompany(
+        @Header("Authorization") token: String,
+        ) : Response<List<UserInfo>>
+
+    @GET("chats/history")
+    suspend fun getChatBetweenUser(
+        @Header("Authorization") token: String,
+        @Query("companyCode") companyCode: String,
+        @Query("otherUserId") otherUserId: String
+    ) : Response<List<ChatMessage>>
+
+    @PUT("chats/seen/{chatId}")
+    suspend fun markChatSeen(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId:String,
+        @Query("userId") userId : String,
+        ): Response<SuccessApiResponseMessage>
+    
 }

@@ -27,6 +27,7 @@ import com.example.smarthr_app.data.model.UserRole
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.theme.SecondaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
 import com.example.smarthr_app.utils.ValidationUtils
@@ -36,10 +37,10 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
+    chatViewModel: ChatViewModel,
     viewModel: AuthViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToHRDashboard: () -> Unit,
-    onNavigateToEmployeeDashboard: () -> Unit
+    onNavigateToChatScreen:()->Unit
 ) {
     val context = LocalContext.current
 
@@ -67,9 +68,11 @@ fun RegisterScreen(
                 ToastHelper.showSuccessToast(context, "Account created successfully!")
                 delay(500)
                 if (currentState.data.user.role == "ROLE_HR") {
-                    onNavigateToHRDashboard()
+                    chatViewModel.initSocket(currentState.data.user.userId)
+                    onNavigateToChatScreen()
                 } else {
-                    onNavigateToEmployeeDashboard()
+                    chatViewModel.initSocket(currentState.data.user.userId)
+                    onNavigateToChatScreen()
                 }
                 viewModel.clearRegisterState()
             }

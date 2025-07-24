@@ -24,6 +24,7 @@ import com.example.smarthr_app.data.model.LoginRequest
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.theme.SecondaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
 import com.example.smarthr_app.utils.ValidationUtils
@@ -32,10 +33,10 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
+    chatViewModel: ChatViewModel,
     viewModel: AuthViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToHRDashboard: () -> Unit,
-    onNavigateToEmployeeDashboard: () -> Unit
+    onNavigateToChatScreen:()->Unit
 ) {
     val context = LocalContext.current
 
@@ -56,9 +57,11 @@ fun LoginScreen(
                 ToastHelper.showSuccessToast(context, "Login successful!")
                 delay(500)
                 if (currentState.data.user.role == "ROLE_HR") {
-                    onNavigateToHRDashboard()
+                    chatViewModel.initSocket(currentState.data.user.userId)
+                    onNavigateToChatScreen()
                 } else {
-                    onNavigateToEmployeeDashboard()
+                    chatViewModel.initSocket(currentState.data.user.userId)
+                    onNavigateToChatScreen()
                 }
                 viewModel.clearAuthState()
             }

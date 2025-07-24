@@ -21,13 +21,18 @@ import com.example.smarthr_app.presentation.viewmodel.CompanyViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.smarthr_app.data.repository.ChatRepository
 import com.example.smarthr_app.data.repository.LeaveRepository
 import com.example.smarthr_app.data.repository.TaskRepository
+import com.example.smarthr_app.presentation.screen.chat.AllUserListScreen
+import com.example.smarthr_app.presentation.screen.chat.ChatListScreen
+import com.example.smarthr_app.presentation.screen.chat.ChatScreen
 import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeTaskDetailScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateTaskScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRLeaveManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRTaskManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDetailScreen
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
@@ -41,11 +46,12 @@ fun NavGraph(
     val authRepository = AuthRepository(dataStoreManager)
     val companyRepository = CompanyRepository(dataStoreManager)
     val taskRepository = TaskRepository(dataStoreManager)
+    val chatRepository = ChatRepository(dataStoreManager)
 
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(authRepository) }
     val companyViewModel: CompanyViewModel = viewModel { CompanyViewModel(companyRepository) }
     val taskViewModel: TaskViewModel = viewModel { TaskViewModel(taskRepository) }
-
+    val chatViewModel : ChatViewModel = viewModel { ChatViewModel(chatRepository) }
     val leaveRepository = LeaveRepository(dataStoreManager)
     val leaveViewModel: LeaveViewModel = viewModel { LeaveViewModel(leaveRepository) }
 
@@ -66,52 +72,33 @@ fun NavGraph(
 
         composable(Screen.Register.route) {
             RegisterScreen(
+                chatViewModel = chatViewModel,
                 viewModel = authViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToHRDashboard = {
-                    navController.navigate(Screen.HRDashboard.route) {
-                        popUpTo(Screen.RoleSelection.route) {
-                            inclusive = true
-                        }
-                    }
-                },
-                onNavigateToEmployeeDashboard = {
-                    navController.navigate(Screen.EmployeeDashboard.route) {
-                        popUpTo(Screen.RoleSelection.route) {
-                            inclusive = true
-                        }
-                    }
+                onNavigateToChatScreen = {
+                    navController.navigate(Screen.ChatList.route)
                 }
             )
         }
 
         composable(Screen.Login.route) {
             LoginScreen(
+                chatViewModel = chatViewModel,
                 viewModel = authViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToHRDashboard = {
-                    navController.navigate(Screen.HRDashboard.route) {
-                        popUpTo(Screen.RoleSelection.route) {
-                            inclusive = true
-                        }
-                    }
-                },
-                onNavigateToEmployeeDashboard = {
-                    navController.navigate(Screen.EmployeeDashboard.route) {
-                        popUpTo(Screen.RoleSelection.route) {
-                            inclusive = true
-                        }
-                    }
+                onNavigateToChatScreen = {
+                    navController.navigate(Screen.ChatList.route)
                 }
             )
         }
 
         composable(Screen.HRDashboard.route) {
             HRDashboardScreen(
+                chatViewModel = chatViewModel,
                 authViewModel = authViewModel,
                 onLogout = {
                     authViewModel.logout()
@@ -243,6 +230,7 @@ fun NavGraph(
 
         composable(Screen.EmployeeDashboard.route) {
             EmployeeDashboardScreen(
+                chatViewModel = chatViewModel,
                 authViewModel = authViewModel,
                 taskViewModel = taskViewModel,
                 leaveViewModel = leaveViewModel,
@@ -313,6 +301,58 @@ fun NavGraph(
             )
         }
 
+        composable(Screen.ChatList.route){
+            ChatListScreen(
+                chatViewModel = chatViewModel,
+                authViewModel = authViewModel,
+                onNavigateToUserListScreen = {
+                        navController.navigate(Screen.AllUserListScreen.route)
+                },
+                onNavigateChatScreen = {otherUserId,imageUrl,name->
+                    navController.navigate("${Screen.ChatScreen.route}/$otherUserId/$imageUrl/$name")
+                }
+            )
+        }
+
+        composable(Screen.AllUserListScreen.route){
+            AllUserListScreen(
+                chatViewModel = chatViewModel,
+                authViewModel = authViewModel,
+                goToBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToChatScreen = {otherUserId,imageUrl,name->
+                    navController.navigate("${Screen.ChatScreen.route}/$otherUserId/$imageUrl/$name")
+                }
+            )
+        }
+
+        composable(
+            route = "${Screen.ChatScreen.route}/{otherUserId}/{imageUrl}/{name}",
+            arguments = listOf(
+                navArgument("otherUserId") { type = NavType.StringType },
+                navArgument("imageUrl") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType }
+            ),
+
+
+        ) { backStackEntry ->
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+            val imageUrl = backStackEntry.arguments?.getString("imageUrl") ?: ""
+            val name = backStackEntry.arguments?.getString("name") ?: ""
+            ChatScreen(
+                chatViewModel = chatViewModel,
+                authViewModel = authViewModel,
+                receiverId =  otherUserId,
+                imageUrl = imageUrl,
+                name = name,
+                goToBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+
     }
 }
 
@@ -331,6 +371,9 @@ sealed class Screen(val route: String) {
     // Task Management Routes
     object HRTaskManagement : Screen("hr_task_management")
     object CreateTask : Screen("create_task")
+    object ChatList : Screen("chat_list")
+    object AllUserListScreen : Screen("user_list")
+    object ChatScreen : Screen("chat_screen")
 
     object TaskDetail : Screen("task_detail/{taskId}") {
         fun createRoute(taskId: String) = "task_detail/$taskId"

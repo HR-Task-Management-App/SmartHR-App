@@ -1,5 +1,6 @@
 package com.example.smarthr_app.presentation.screen.dashboard.hr
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,10 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.smarthr_app.data.model.ChatMessage
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
+import com.example.smarthr_app.utils.showNotification
 
 data class DashboardCard(
     val title: String,
@@ -31,6 +37,7 @@ data class DashboardCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HRDashboardScreen(
+    chatViewModel: ChatViewModel,
     authViewModel: AuthViewModel,
     onLogout: () -> Unit,
     onNavigateToEmployees: () -> Unit,
@@ -38,7 +45,25 @@ fun HRDashboardScreen(
     onNavigateToTasks: () -> Unit,
     onNavigateToLeaves: () -> Unit
 ) {
+    val context = LocalContext.current
     val user by authViewModel.user.collectAsState(initial = null)
+
+//    LaunchedEffect(user) {
+//        user?.let {
+//            chatViewModel.initSocket(it.userId)
+//        }
+//    }
+//
+//    val messages by chatViewModel.messages.collectAsState()
+//    LaunchedEffect(messages.size) {
+//        messages.isNotEmpty().let{
+//            if(it) {
+//                val chatMessage = messages[messages.size-1]
+//                showNotification(context,"Message from "+chatMessage.sender.name,chatMessage.content)
+//            }
+//        }
+//    }
+
 
     LaunchedEffect(Unit) {
         authViewModel.user.collect { currentUser ->
