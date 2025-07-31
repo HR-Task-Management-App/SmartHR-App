@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
+import com.example.smarthr_app.presentation.viewmodel.AttendanceViewModel
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
@@ -26,6 +27,7 @@ fun EmployeeDashboardScreen(
     authViewModel: AuthViewModel,
     taskViewModel: TaskViewModel,
     leaveViewModel: LeaveViewModel,
+    attendanceViewModel: AttendanceViewModel,
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToTaskDetail: (String) -> Unit
@@ -81,7 +83,7 @@ fun EmployeeDashboardScreen(
         ) {
             when (selectedTabIndex) {
                 0 -> HomeTab(user = user, authViewModel = authViewModel, onNavigateToProfile = onNavigateToProfile)
-                1 -> AttendanceTab()
+                1 -> EmployeeAttendanceScreen(attendanceViewModel = attendanceViewModel)
                 2 -> EmployeeTaskScreen(
                     taskViewModel = taskViewModel,
                     onNavigateToTaskDetail = onNavigateToTaskDetail
