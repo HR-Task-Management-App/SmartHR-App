@@ -173,4 +173,41 @@ interface ApiService {
         @Path("leaveId") leaveId: String
     ): Response<SuccessApiResponseMessage>
 
+    // Office Location endpoints
+    @POST("offices")
+    suspend fun createOfficeLocation(
+        @Header("Authorization") token: String,
+        @Body request: OfficeLocationRequestDto
+    ): Response<OfficeLocationResponseDto>
+
+    @PUT("offices/{id}")
+    suspend fun updateOfficeLocation(
+        @Header("Authorization") token: String,
+        @Path("id") locationId: String,
+        @Body request: OfficeLocationRequestDto
+    ): Response<OfficeLocationResponseDto>
+
+    @GET("offices")
+    suspend fun getCompanyOfficeLocation(
+        @Header("Authorization") token: String
+    ): Response<OfficeLocationResponseDto>
+
+    // Attendance endpoints
+    @POST("attendances")
+    suspend fun markAttendance(
+        @Header("Authorization") token: String,
+        @Body request: AttendanceRequestDto
+    ): Response<AttendanceResponseDto>
+
+    @GET("attendances/history")
+    suspend fun getEmployeeAttendanceHistory(
+        @Header("Authorization") token: String
+    ): Response<List<AttendanceResponseDto>>
+
+    @GET("attendances/company")
+    suspend fun getCompanyAttendanceByDate(
+        @Header("Authorization") token: String,
+        @Query("date") date: String? = null  // Optional date parameter, defaults to today
+    ): Response<List<AttendanceResponseDto>>
+
 }

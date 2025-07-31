@@ -21,13 +21,17 @@ import com.example.smarthr_app.presentation.viewmodel.CompanyViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.smarthr_app.data.repository.AttendanceRepository
 import com.example.smarthr_app.data.repository.LeaveRepository
 import com.example.smarthr_app.data.repository.TaskRepository
 import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeTaskDetailScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateTaskScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.HRCompanyAttendanceScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRLeaveManagementScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.HROfficeLocationScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRTaskManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDetailScreen
+import com.example.smarthr_app.presentation.viewmodel.AttendanceViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
@@ -48,6 +52,9 @@ fun NavGraph(
 
     val leaveRepository = LeaveRepository(dataStoreManager)
     val leaveViewModel: LeaveViewModel = viewModel { LeaveViewModel(leaveRepository) }
+
+    val attendanceRepository = AttendanceRepository(dataStoreManager)
+    val attendanceViewModel: AttendanceViewModel = viewModel { AttendanceViewModel(attendanceRepository) }
 
     NavHost(
         navController = navController,
@@ -132,6 +139,12 @@ fun NavGraph(
                 },
                 onNavigateToLeaves = {
                     navController.navigate(Screen.HRLeaveManagement.route)
+                },
+                onNavigateToOfficeLocation = {
+                    navController.navigate(Screen.HROfficeLocation.route)
+                },
+                onNavigateToCompanyAttendance = {
+                    navController.navigate(Screen.HRCompanyAttendance.route)
                 }
             )
         }
@@ -246,6 +259,7 @@ fun NavGraph(
                 authViewModel = authViewModel,
                 taskViewModel = taskViewModel,
                 leaveViewModel = leaveViewModel,
+                attendanceViewModel = attendanceViewModel,
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.RoleSelection.route) {
@@ -313,6 +327,24 @@ fun NavGraph(
             )
         }
 
+        composable(Screen.HROfficeLocation.route) {
+            HROfficeLocationScreen(
+                attendanceViewModel = attendanceViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.HRCompanyAttendance.route) {
+            HRCompanyAttendanceScreen(
+                attendanceViewModel = attendanceViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
     }
 }
 
@@ -354,5 +386,8 @@ sealed class Screen(val route: String) {
     }
 
     object HRLeaveManagement : Screen("hr_leave_management")
+
+    object HROfficeLocation : Screen("hr_office_location")
+    object HRCompanyAttendance : Screen("hr_company_attendance")
 
 }
