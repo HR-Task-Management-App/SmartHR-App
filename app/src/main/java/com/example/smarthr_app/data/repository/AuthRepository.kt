@@ -2,8 +2,17 @@ package com.example.smarthr_app.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.example.smarthr_app.data.local.DataStoreManager
-import com.example.smarthr_app.data.model.*
+import com.example.smarthr_app.data.model.AuthResponse
+import com.example.smarthr_app.data.model.GoogleLoginRequest
+import com.example.smarthr_app.data.model.GoogleSignUpRequest
+import com.example.smarthr_app.data.model.LoginRequest
+import com.example.smarthr_app.data.model.UpdateProfileRequest
+import com.example.smarthr_app.data.model.User
+import com.example.smarthr_app.data.model.UserDto
+import com.example.smarthr_app.data.model.UserRegisterRequest
+import com.example.smarthr_app.data.model.UserRole
 import com.example.smarthr_app.data.remote.RetrofitInstance
 import com.example.smarthr_app.utils.Resource
 import kotlinx.coroutines.flow.Flow
@@ -66,6 +75,79 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
             }
         } catch (e: Exception) {
             Resource.Error("Network error. Please check your connection and try again.")
+        }
+    }
+
+    suspend fun loginWithGoogle(request: GoogleLoginRequest): Resource<AuthResponse> {
+        return try {
+            val response = RetrofitInstance.api.loginWithGoogle(request)
+            if (response.isSuccessful) {
+                response.body()?.let { authResponse ->
+                    val user = User(
+                        userId = authResponse.user.userId,
+                        name = authResponse.user.name,
+                        email = authResponse.user.email,
+                        phone = authResponse.user.phone,
+                        role = if (authResponse.user.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
+                        companyCode = authResponse.user.companyCode,
+                        imageUrl = authResponse.user.imageUrl,
+                        gender = authResponse.user.gender,
+                        position = authResponse.user.position,
+                        department = authResponse.user.department,
+                        waitingCompanyCode = authResponse.user.waitingCompanyCode,
+                        joiningStatus = authResponse.user.joiningStatus
+                    )
+                    dataStoreManager.saveUser(user)
+                    dataStoreManager.saveToken(authResponse.token)
+                    Resource.Success(authResponse)
+                } ?: Resource.Error("Login successful but no data received")
+            } else {
+                val errorMessage = parseErrorMessage(
+                    response.errorBody()?.string(),
+                    response.code(),
+                    isLogin = false //
+                )
+                Resource.Error(errorMessage)
+            }
+        } catch (e: Exception) {
+            Resource.Error("Network error. Please check your connection and try again.")
+        }
+    }
+
+    suspend fun signUpWithGoogle(request: GoogleSignUpRequest): Resource<AuthResponse> {
+        return try {
+            val response = RetrofitInstance.api.signUpWithGoogle(request)
+            Log.d("SignUpWithGoogle", "Response: ${response.body()}")
+            if (response.isSuccessful) {
+                response.body()?.let { authResponse ->
+                    val user = User(
+                        userId = authResponse.user.userId,
+                        name = authResponse.user.name,
+                        email = authResponse.user.email,
+                        phone = authResponse.user.phone,
+                        role = if (authResponse.user.role == "ROLE_HR") UserRole.ROLE_HR else UserRole.ROLE_USER,
+                        companyCode = authResponse.user.companyCode,
+                        imageUrl = authResponse.user.imageUrl,
+                        gender = authResponse.user.gender,
+                        position = authResponse.user.position,
+                        department = authResponse.user.department,
+                        waitingCompanyCode = authResponse.user.waitingCompanyCode,
+                        joiningStatus = authResponse.user.joiningStatus
+                    )
+                    dataStoreManager.saveUser(user)
+                    dataStoreManager.saveToken(authResponse.token)
+                    Resource.Success(authResponse)
+                } ?: Resource.Error("SignUp successful but no data received")
+            } else {
+                val errorMessage = parseErrorMessage(
+                    response.errorBody()?.string(),
+                    response.code(),
+                    isLogin = false //
+                )
+                Resource.Error(errorMessage)
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message.toString())
         }
     }
 

@@ -17,6 +17,15 @@ data class LoginRequest(
     val password: String
 )
 
+data class GoogleLoginRequest(
+    val idToken: String
+)
+
+data class GoogleSignUpRequest(
+    val idToken :String,
+    val role:String
+)
+
 data class AuthResponse(
     val token: String,
     val user: UserDto

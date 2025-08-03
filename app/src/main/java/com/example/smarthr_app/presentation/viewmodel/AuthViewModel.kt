@@ -4,16 +4,31 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smarthr_app.data.model.*
+import com.example.smarthr_app.data.model.AuthResponse
+import com.example.smarthr_app.data.model.GoogleLoginRequest
+import com.example.smarthr_app.data.model.GoogleSignUpRequest
+import com.example.smarthr_app.data.model.LoginRequest
+import com.example.smarthr_app.data.model.UpdateProfileRequest
+import com.example.smarthr_app.data.model.User
+import com.example.smarthr_app.data.model.UserDto
+import com.example.smarthr_app.data.model.UserRegisterRequest
 import com.example.smarthr_app.data.repository.AuthRepository
 import com.example.smarthr_app.utils.Resource
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _authState = MutableStateFlow<Resource<AuthResponse>?>(null)
     val authState: StateFlow<Resource<AuthResponse>?> = _authState
+
+    private val _googleLoginAuthState = MutableStateFlow<Resource<AuthResponse>?>(null)
+    val googleLoginAuthState: StateFlow<Resource<AuthResponse>?> = _googleLoginAuthState
+
+    private val _googleSignUpAuthState = MutableStateFlow<Resource<AuthResponse>?>(null)
+    val googleSignUpAuthState: StateFlow<Resource<AuthResponse>?> = _googleSignUpAuthState
 
     private val _registerState = MutableStateFlow<Resource<AuthResponse>?>(null)
     val registerState: StateFlow<Resource<AuthResponse>?> = _registerState
@@ -39,6 +54,33 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
             _authState.value = authRepository.login(request)
         }
     }
+
+    fun loginWithGoogle(request: GoogleLoginRequest?) {
+        if (request == null || request.idToken.isBlank()) {
+            _googleLoginAuthState.value = Resource.Error("Invalid ID Token")
+            return
+        }
+
+        _googleLoginAuthState.value = Resource.Loading()
+        viewModelScope.launch {
+            val result = authRepository.loginWithGoogle(request)
+            _googleLoginAuthState.value = result
+        }
+    }
+
+    fun signUpWithGoogle(request: GoogleSignUpRequest?) {
+        if (request == null || request.idToken.isBlank()) {
+            _googleSignUpAuthState.value = Resource.Error("Invalid ID Token")
+            return
+        }
+
+        _googleSignUpAuthState.value = Resource.Loading()
+        viewModelScope.launch {
+            val result = authRepository.signUpWithGoogle(request)
+            _googleSignUpAuthState.value = result
+        }
+    }
+
 
     fun registerUser(request: UserRegisterRequest) {
         viewModelScope.launch {
@@ -96,6 +138,8 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     fun clearAuthState() {
         _authState.value = null
+        _googleLoginAuthState.value = null
+        _googleSignUpAuthState.value = null
     }
 
     fun clearRegisterState() {

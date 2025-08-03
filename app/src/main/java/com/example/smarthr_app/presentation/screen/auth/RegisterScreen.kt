@@ -1,7 +1,21 @@
 package com.example.smarthr_app.presentation.screen.auth
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,18 +24,41 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.smarthr_app.R
+import com.example.smarthr_app.data.model.GoogleSignUpRequest
 import com.example.smarthr_app.data.model.UserRegisterRequest
 import com.example.smarthr_app.data.model.UserRole
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
@@ -29,8 +66,11 @@ import com.example.smarthr_app.presentation.theme.SecondaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
-import com.example.smarthr_app.utils.ValidationUtils
 import com.example.smarthr_app.utils.ValidationResult
+import com.example.smarthr_app.utils.ValidationUtils
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +99,38 @@ fun RegisterScreen(
     var companyCodeError by remember { mutableStateOf("") }
 
     val registerState by viewModel.registerState.collectAsState(initial = null)
+    val googleSignUpAuthState by viewModel.googleSignUpAuthState.collectAsState(initial = null)
+
+
+
+    val googleSignInClient = remember {
+        GoogleSignIn.getClient(
+            context,
+            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(context.getString(R.string.web_client_id)) //public
+                .requestEmail()
+                .build()
+        )
+    }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    viewModel.signUpWithGoogle(GoogleSignUpRequest(idToken, if (selectedRole == UserRole.ROLE_HR) "ROLE_HR" else "ROLE_USER"))
+                } else {
+                    ToastHelper.showErrorToast(context, "Google Sign-In failed: idToken is null")
+                }
+            } catch (e: ApiException) {
+                ToastHelper.showErrorToast(context, "Google Sign-In error: ${e.message}")
+            }
+        }
+    }
 
     // Handle registration result
     LaunchedEffect(registerState) {
@@ -90,6 +162,25 @@ fun RegisterScreen(
                         ToastHelper.showErrorToast(context, currentState.message)
                     }
                 }
+            }
+            else -> {}
+        }
+    }
+
+    LaunchedEffect(googleSignUpAuthState) {
+        when (val currentState = googleSignUpAuthState) {
+            is Resource.Success -> {
+                ToastHelper.showSuccessToast(context, "SignUp successful!")
+                delay(500)
+                if (currentState.data.user.role == "ROLE_HR") {
+                    onNavigateToHRDashboard()
+                } else {
+                    onNavigateToEmployeeDashboard()
+                }
+                viewModel.clearAuthState()
+            }
+            is Resource.Error -> {
+                ToastHelper.showErrorToast(context, currentState.message)
             }
             else -> {}
         }
@@ -427,6 +518,44 @@ fun RegisterScreen(
                                 text = "Create Account",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = {
+                            googleSignInClient.signOut()
+                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder
+                    ) {
+                        if(googleSignUpAuthState is Resource.Loading){
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.Black
+                            )
+                        }
+                        else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.google),
+                                contentDescription = "Google",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sign up with Google",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.Black,
                                 fontWeight = FontWeight.Bold
                             )
                         }

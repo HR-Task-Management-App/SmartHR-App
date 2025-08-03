@@ -2,24 +2,60 @@ package com.example.smarthr_app.presentation.screen.dashboard.hr
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.BeachAccess
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.example.smarthr_app.R
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 
 data class DashboardCard(
     val title: String,
@@ -31,6 +67,7 @@ data class DashboardCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HRDashboardScreen(
+    chatViewModel: ChatViewModel,
     authViewModel: AuthViewModel,
     onLogout: () -> Unit,
     onNavigateToEmployees: () -> Unit,
@@ -38,7 +75,9 @@ fun HRDashboardScreen(
     onNavigateToTasks: () -> Unit,
     onNavigateToLeaves: () -> Unit,
     onNavigateToOfficeLocation: () -> Unit,
-    onNavigateToCompanyAttendance: () -> Unit
+    onNavigateToCompanyAttendance: () -> Unit,
+    onNavigateToChatList:()->Unit,
+    onNavigateToMeetings:()->Unit
 ) {
     val user by authViewModel.user.collectAsState(initial = null)
 
@@ -47,6 +86,12 @@ fun HRDashboardScreen(
             if (currentUser == null) {
                 onLogout()
             }
+        }
+    }
+
+    LaunchedEffect(user) {
+        user?.let {
+            chatViewModel.initSocket(it.userId)
         }
     }
 
@@ -85,14 +130,8 @@ fun HRDashboardScreen(
             title = "Meetings",
             icon = Icons.Default.VideoCall,
             color = Color(0xFFE91E63),
-            onClick = { /* TODO: Navigate to meetings */ }
+            onClick = onNavigateToMeetings
         ),
-        DashboardCard(
-            title = "Reports",
-            icon = Icons.Default.Assessment,
-            color = Color(0xFF795548),
-            onClick = { /* TODO: Navigate to reports */ }
-        )
     )
 
     val cardPairs = dashboardCards.chunked(2)
@@ -128,12 +167,49 @@ fun HRDashboardScreen(
                             .clickable { onNavigateToProfile() }, // Made clickable
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        val imageUrl = user?.imageUrl
+                        if (!imageUrl.isNullOrBlank()) {
+                            SubcomposeAsyncImage(
+                                model = imageUrl,
+                                contentDescription = "Profile image",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape),
+                                loading = {
+                                    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(
+                                        R.raw.image_loading))
+                                    val progress by animateLottieCompositionAsState(composition)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        LottieAnimation(
+                                            composition = composition,
+                                            progress = { progress },
+                                            modifier = Modifier.size(36.dp).clip(CircleShape)   ,
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                },
+                                error = {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Default profile icon",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Default profile icon",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -153,6 +229,22 @@ fun HRDashboardScreen(
                     }
                 }
 
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        onNavigateToChatList()
+                        chatViewModel.getMyChatList(companyCode = user?.companyCode!!)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Chat,
+                        contentDescription = "Logout",
+                        tint = Color.White
+                    )
+                }
                 IconButton(
                     onClick = {
                         authViewModel.logout()
@@ -164,6 +256,7 @@ fun HRDashboardScreen(
                         tint = Color.White
                     )
                 }
+            }
             }
         }
 

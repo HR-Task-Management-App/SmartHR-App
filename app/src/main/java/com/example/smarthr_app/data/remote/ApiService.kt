@@ -1,10 +1,48 @@
 package com.example.smarthr_app.data.remote
 
-import com.example.smarthr_app.data.model.*
+import com.example.smarthr_app.data.model.AttendanceRequestDto
+import com.example.smarthr_app.data.model.AttendanceResponseDto
+import com.example.smarthr_app.data.model.AuthResponse
+import com.example.smarthr_app.data.model.Chat
+import com.example.smarthr_app.data.model.ChatMessage
+import com.example.smarthr_app.data.model.CommentRequest
+import com.example.smarthr_app.data.model.CommentResponse
+import com.example.smarthr_app.data.model.CompanyEmployeesResponse
+import com.example.smarthr_app.data.model.CompanyWaitlistResponse
+import com.example.smarthr_app.data.model.EmployeeLeaveResponseDto
+import com.example.smarthr_app.data.model.GoogleLoginRequest
+import com.example.smarthr_app.data.model.GoogleSignUpRequest
+import com.example.smarthr_app.data.model.HRLeaveResponseDto
+import com.example.smarthr_app.data.model.LeaveRequestDto
+import com.example.smarthr_app.data.model.LoginRequest
+import com.example.smarthr_app.data.model.MeetingCreateRequestDto
+import com.example.smarthr_app.data.model.MeetingResponseDto
+import com.example.smarthr_app.data.model.MeetingUpdateRequestDto
+import com.example.smarthr_app.data.model.OfficeLocationRequestDto
+import com.example.smarthr_app.data.model.OfficeLocationResponseDto
+import com.example.smarthr_app.data.model.SuccessApiResponseMessage
+import com.example.smarthr_app.data.model.TaskFullDetailResponse
+import com.example.smarthr_app.data.model.TaskRequest
+import com.example.smarthr_app.data.model.TaskResponse
+import com.example.smarthr_app.data.model.UpdateProfileRequest
+import com.example.smarthr_app.data.model.UpdateTaskStatusRequest
+import com.example.smarthr_app.data.model.UserDto
+import com.example.smarthr_app.data.model.UserInfo
+import com.example.smarthr_app.data.model.UserRegisterRequest
 import okhttp3.MultipartBody
-import retrofit2.Response
-import retrofit2.http.*
 import okhttp3.RequestBody
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Multipart
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Part
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -13,6 +51,12 @@ interface ApiService {
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+
+    @POST("auth/googleLogin")
+    suspend fun loginWithGoogle(@Body request: GoogleLoginRequest): Response<AuthResponse>
+
+    @POST("auth/googleSignUp")
+    suspend fun signUpWithGoogle(@Body request: GoogleSignUpRequest): Response<AuthResponse>
 
     @GET("users")
     suspend fun getUserProfile(@Header("Authorization") token: String): Response<UserDto>
@@ -209,5 +253,68 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("date") date: String? = null  // Optional date parameter, defaults to today
     ): Response<List<AttendanceResponseDto>>
+
+    @GET("chats/myChats")
+    suspend fun getMyChatList(
+        @Header("Authorization") token: String,
+        @Query("companyCode") companyCode: String
+    ) : Response<List<Chat>>
+
+    @GET("companies/everybody")
+    suspend fun getAllHrAndEmployeeOfCompany(
+        @Header("Authorization") token: String,
+    ) : Response<List<UserInfo>>
+
+    @GET("chats/history")
+    suspend fun getChatBetweenUser(
+        @Header("Authorization") token: String,
+        @Query("companyCode") companyCode: String,
+        @Query("otherUserId") otherUserId: String
+    ) : Response<List<ChatMessage>>
+
+    @PUT("chats/seen/{chatId}")
+    suspend fun markChatSeen(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId:String,
+        @Query("userId") userId : String,
+    ): Response<SuccessApiResponseMessage>
+
+    // Meeting endpoints
+    @POST("meetings/create")
+    suspend fun createMeeting(
+        @Header("Authorization") token: String,
+        @Body request: MeetingCreateRequestDto
+    ): Response<MeetingResponseDto>
+
+    @GET("meetings/myMeetings")
+    suspend fun getMyMeetings(
+        @Header("Authorization") token: String
+    ): Response<List<MeetingResponseDto>>
+
+    @GET("meetings/{id}")
+    suspend fun getMeetingById(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String
+    ): Response<MeetingResponseDto>
+
+    @POST("meetings/{id}")
+    suspend fun updateMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String,
+        @Body request: MeetingUpdateRequestDto
+    ): Response<MeetingResponseDto>
+
+    @POST("meetings/cancel/{id}")
+    suspend fun cancelMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String
+    ): Response<SuccessApiResponseMessage>
+
+    @POST("meetings/respond/{id}")
+    suspend fun respondToMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String,
+        @Query("status") status: String // "ACCEPTED" or "DECLINED"
+    ): Response<SuccessApiResponseMessage>
 
 }

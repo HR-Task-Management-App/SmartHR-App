@@ -1,8 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
     id("kotlin-parcelize")
+    alias(libs.plugins.kotlin.ksp)
 }
 
 android {
@@ -97,5 +99,13 @@ dependencies {
 
 //    Google Play Services Location
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
+
+    //lottie json
+    implementation(libs.lottie.compose)
+
+    //websocket
+    implementation("com.squareup.okhttp3:okhttp:5.1.0")
+
 
 }

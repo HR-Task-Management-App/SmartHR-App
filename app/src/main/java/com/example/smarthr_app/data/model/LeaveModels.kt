@@ -1,7 +1,5 @@
 package com.example.smarthr_app.data.model
 
-import com.google.gson.annotations.SerializedName
-
 // Leave Request/Response Models
 data class LeaveRequestDto(
     val type: String,

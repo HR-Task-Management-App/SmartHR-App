@@ -1,7 +1,5 @@
 package com.example.smarthr_app.data.model
 
-import com.google.gson.annotations.SerializedName
-
 data class TaskRequest(
     val title: String,
     val description: String,

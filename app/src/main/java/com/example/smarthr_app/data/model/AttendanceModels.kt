@@ -1,7 +1,5 @@
 package com.example.smarthr_app.data.model
 
-import com.google.gson.annotations.SerializedName
-
 // Office Location Models
 data class OfficeLocationRequestDto(
     val latitude: String,

@@ -2,35 +2,82 @@ package com.example.smarthr_app.presentation.screen.dashboard.employee
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.BeachAccess
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.example.smarthr_app.R
+import com.example.smarthr_app.data.model.User
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AttendanceViewModel
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmployeeDashboardScreen(
+    chatViewModel: ChatViewModel,
     authViewModel: AuthViewModel,
     taskViewModel: TaskViewModel,
     leaveViewModel: LeaveViewModel,
     attendanceViewModel: AttendanceViewModel,
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToTaskDetail: (String) -> Unit
+    onNavigateToTaskDetail: (String) -> Unit,
+    onNavigateToChatList:()->Unit,
+    onNavigateToMeetings: () -> Unit
 ) {
     val user by authViewModel.user.collectAsState(initial = null)
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -40,6 +87,12 @@ fun EmployeeDashboardScreen(
             if (currentUser == null) {
                 onLogout()
             }
+        }
+    }
+
+    LaunchedEffect(user) {
+        user?.let {
+            chatViewModel.initSocket(it.userId)
         }
     }
 
@@ -82,7 +135,7 @@ fun EmployeeDashboardScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (selectedTabIndex) {
-                0 -> HomeTab(user = user, authViewModel = authViewModel, onNavigateToProfile = onNavigateToProfile)
+                0 -> HomeTab(user = user, authViewModel = authViewModel, chatViewModel = chatViewModel, onNavigateToProfile = onNavigateToProfile, onNavigateToMeetings = onNavigateToMeetings, onNavigateToChatList = onNavigateToChatList )
                 1 -> EmployeeAttendanceScreen(attendanceViewModel = attendanceViewModel)
                 2 -> EmployeeTaskScreen(
                     taskViewModel = taskViewModel,
@@ -96,9 +149,12 @@ fun EmployeeDashboardScreen(
 
 @Composable
 fun HomeTab(
-    user: com.example.smarthr_app.data.model.User?,
+    user: User?,
     authViewModel: AuthViewModel,
-    onNavigateToProfile: () -> Unit
+    chatViewModel: ChatViewModel,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToMeetings: () -> Unit,
+    onNavigateToChatList: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -131,12 +187,49 @@ fun HomeTab(
                                 .clickable { onNavigateToProfile() }, // Made clickable
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            val imageUrl = user?.imageUrl
+                            if (!imageUrl.isNullOrBlank()) {
+                                SubcomposeAsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Profile image",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape),
+                                    loading = {
+                                        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(
+                                            R.raw.image_loading))
+                                        val progress by animateLottieCompositionAsState(composition)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            LottieAnimation(
+                                                composition = composition,
+                                                progress = { progress },
+                                                modifier = Modifier.size(36.dp),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                    },
+                                    error = {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Default profile icon",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Default profile icon",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -157,273 +250,101 @@ fun HomeTab(
                     }
 
                     // Logout button
-                    IconButton(
-                        onClick = {
-                            authViewModel.logout()
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Logout",
-                            tint = Color.White
-                        )
+                        IconButton(
+                            onClick = {
+                                onNavigateToChatList()
+                                chatViewModel.getMyChatList(companyCode = user?.companyCode!!)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = "Logout",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                authViewModel.logout()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Logout",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Quick Actions Section
-                Text(
-                    text = "Quick Actions",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Check In/Out Button
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AccessTime,
-                                contentDescription = "Check In",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Check In",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
 
-                    // Apply Leave Button
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.EventNote,
-                                contentDescription = "Apply Leave",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Apply Leave",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    // View Tasks Button
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Assignment,
-                                contentDescription = "View Tasks",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "My Tasks",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+  Spacer(modifier = Modifier.height(16.dp))
 
-        // Today's Summary Section
+        // Meetings Card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .clickable(
+                    onClick = {
+                        onNavigateToMeetings()
+                    }
+                ), // Make it clickable
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Today's Summary",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryPurple
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "08:30 AM",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Check In",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "8h 30m",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Working Hours",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "3",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Pending Tasks",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Company Status Card (if user has company information)
-        if (!user?.companyCode.isNullOrBlank() || !user?.waitingCompanyCode.isNullOrBlank()) {
-            Card(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE91E63).copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.VideoCall,
+                        contentDescription = "Meetings",
+                        modifier = Modifier.size(24.dp),
+                        tint = Color(0xFFE91E63)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Company Status",
+                        text = "Scheduled Meetings",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = PrimaryPurple
+                        color = Color(0xFFE91E63)
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    when {
-                        !user?.companyCode.isNullOrBlank() -> {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Connected to ${user?.companyCode}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF4CAF50),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                        !user?.waitingCompanyCode.isNullOrBlank() -> {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFF9800),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Waiting approval from ${user?.waitingCompanyCode}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFFF9800),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = "View your upcoming and past meetings",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Go to Meetings",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+
+
     }
 }
 

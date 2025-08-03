@@ -2,10 +2,12 @@ package com.example.smarthr_app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smarthr_app.data.model.*
+import com.example.smarthr_app.data.model.AttendanceResponseDto
+import com.example.smarthr_app.data.model.OfficeLocationResponseDto
 import com.example.smarthr_app.data.repository.AttendanceRepository
 import com.example.smarthr_app.utils.Resource
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AttendanceViewModel(private val attendanceRepository: AttendanceRepository) : ViewModel() {
