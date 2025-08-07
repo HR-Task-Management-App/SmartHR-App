@@ -38,7 +38,8 @@ fun HRDashboardScreen(
     onNavigateToTasks: () -> Unit,
     onNavigateToLeaves: () -> Unit,
     onNavigateToOfficeLocation: () -> Unit,
-    onNavigateToCompanyAttendance: () -> Unit
+    onNavigateToCompanyAttendance: () -> Unit,
+    onNavigateToMeetings: () -> Unit
 ) {
     val user by authViewModel.user.collectAsState(initial = null)
 
@@ -85,13 +86,7 @@ fun HRDashboardScreen(
             title = "Meetings",
             icon = Icons.Default.VideoCall,
             color = Color(0xFFE91E63),
-            onClick = { /* TODO: Navigate to meetings */ }
-        ),
-        DashboardCard(
-            title = "Reports",
-            icon = Icons.Default.Assessment,
-            color = Color(0xFF795548),
-            onClick = { /* TODO: Navigate to reports */ }
+            onClick = onNavigateToMeetings
         )
     )
 

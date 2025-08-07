@@ -210,4 +210,42 @@ interface ApiService {
         @Query("date") date: String? = null  // Optional date parameter, defaults to today
     ): Response<List<AttendanceResponseDto>>
 
+    // Meeting endpoints
+    @POST("meetings/create")
+    suspend fun createMeeting(
+        @Header("Authorization") token: String,
+        @Body request: MeetingCreateRequestDto
+    ): Response<MeetingResponseDto>
+
+    @GET("meetings/myMeetings")
+    suspend fun getMyMeetings(
+        @Header("Authorization") token: String
+    ): Response<List<MeetingResponseDto>>
+
+    @GET("meetings/{id}")
+    suspend fun getMeetingById(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String
+    ): Response<MeetingResponseDto>
+
+    @POST("meetings/{id}")
+    suspend fun updateMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String,
+        @Body request: MeetingUpdateRequestDto
+    ): Response<MeetingResponseDto>
+
+    @POST("meetings/cancel/{id}")
+    suspend fun cancelMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String
+    ): Response<SuccessApiResponseMessage>
+
+    @POST("meetings/respond/{id}")
+    suspend fun respondToMeeting(
+        @Header("Authorization") token: String,
+        @Path("id") meetingId: String,
+        @Query("status") status: String // "ACCEPTED" or "DECLINED"
+    ): Response<SuccessApiResponseMessage>
+
 }

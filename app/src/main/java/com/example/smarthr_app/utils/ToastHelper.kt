@@ -10,6 +10,13 @@ object ToastHelper {
     }
 
     fun showErrorToast(context: Context, message: String) {
+        // Special handling for meetings-time conflicts
+        val displayMessage = when {
+            message.contains("conflict", ignoreCase = true) -> "⚠️ Time Conflict: $message"
+            message.contains("overlap", ignoreCase = true) -> "⚠️ Schedule Overlap: $message"
+            message.contains("already scheduled", ignoreCase = true) -> "⚠️ Already Scheduled: $message"
+            else -> "❌ $message"
+        }
         Toast.makeText(context, "❌ $message", Toast.LENGTH_LONG).show()
     }
 

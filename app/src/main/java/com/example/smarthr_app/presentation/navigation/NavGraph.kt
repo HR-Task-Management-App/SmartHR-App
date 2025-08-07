@@ -23,16 +23,21 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.smarthr_app.data.repository.AttendanceRepository
 import com.example.smarthr_app.data.repository.LeaveRepository
+import com.example.smarthr_app.data.repository.MeetingRepository
 import com.example.smarthr_app.data.repository.TaskRepository
+import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeMeetingScreen
 import com.example.smarthr_app.presentation.screen.dashboard.employee.EmployeeTaskDetailScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateMeetingScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.CreateTaskScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRCompanyAttendanceScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRLeaveManagementScreen
+import com.example.smarthr_app.presentation.screen.dashboard.hr.HRMeetingManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HROfficeLocationScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.HRTaskManagementScreen
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDetailScreen
 import com.example.smarthr_app.presentation.viewmodel.AttendanceViewModel
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
+import com.example.smarthr_app.presentation.viewmodel.MeetingViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 
 @Composable
@@ -43,11 +48,11 @@ fun NavGraph(
     val context = LocalContext.current
     val dataStoreManager = DataStoreManager(context)
     val authRepository = AuthRepository(dataStoreManager)
-    val companyRepository = CompanyRepository(dataStoreManager)
-    val taskRepository = TaskRepository(dataStoreManager)
-
     val authViewModel: AuthViewModel = viewModel { AuthViewModel(authRepository) }
+    val companyRepository = CompanyRepository(dataStoreManager)
     val companyViewModel: CompanyViewModel = viewModel { CompanyViewModel(companyRepository) }
+
+    val taskRepository = TaskRepository(dataStoreManager)
     val taskViewModel: TaskViewModel = viewModel { TaskViewModel(taskRepository) }
 
     val leaveRepository = LeaveRepository(dataStoreManager)
@@ -55,6 +60,9 @@ fun NavGraph(
 
     val attendanceRepository = AttendanceRepository(dataStoreManager)
     val attendanceViewModel: AttendanceViewModel = viewModel { AttendanceViewModel(attendanceRepository) }
+
+    val meetingRepository = MeetingRepository(dataStoreManager)
+    val meetingViewModel: MeetingViewModel = viewModel { MeetingViewModel(meetingRepository) }
 
     NavHost(
         navController = navController,
@@ -145,6 +153,9 @@ fun NavGraph(
                 },
                 onNavigateToCompanyAttendance = {
                     navController.navigate(Screen.HRCompanyAttendance.route)
+                },
+                onNavigateToMeetings = {
+                    navController.navigate(Screen.HRMeetingManagement.route)
                 }
             )
         }
@@ -273,6 +284,9 @@ fun NavGraph(
                 },
                 onNavigateToTaskDetail = { taskId ->
                     navController.navigate(Screen.EmployeeTaskDetail.createRoute(taskId))
+                },
+                onNavigateToMeetings = {
+                    navController.navigate(Screen.EmployeeMeeting.route)
                 }
             )
         }
@@ -345,10 +359,61 @@ fun NavGraph(
             )
         }
 
+        composable(Screen.HRMeetingManagement.route) {
+            HRMeetingManagementScreen(
+                meetingViewModel = meetingViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToCreateMeeting = {
+                    navController.navigate(Screen.CreateMeeting.route)
+                },
+                onNavigateToEditMeeting = { meetingId ->
+                    navController.navigate(Screen.EditMeeting.createRoute(meetingId))
+                }
+            )
+        }
+
+        composable(Screen.CreateMeeting.route) {
+            CreateMeetingScreen(
+                meetingViewModel = meetingViewModel,
+                companyViewModel = companyViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.EditMeeting.route,
+            arguments = Screen.EditMeeting.arguments
+        ) { backStackEntry ->
+            val meetingId = backStackEntry.arguments?.getString("meetingId") ?: ""
+            CreateMeetingScreen(
+                meetingViewModel = meetingViewModel,
+                companyViewModel = companyViewModel,
+                meetingId = meetingId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.EmployeeMeeting.route) {
+            EmployeeMeetingScreen(
+                meetingViewModel = meetingViewModel,
+                authViewModel = authViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
     }
 }
 
 sealed class Screen(val route: String) {
+    // Authentication Routes
     object RoleSelection : Screen("role_selection")
     object Register : Screen("register")
     object Login : Screen("login")
@@ -363,21 +428,18 @@ sealed class Screen(val route: String) {
     // Task Management Routes
     object HRTaskManagement : Screen("hr_task_management")
     object CreateTask : Screen("create_task")
-
     object TaskDetail : Screen("task_detail/{taskId}") {
         fun createRoute(taskId: String) = "task_detail/$taskId"
         val arguments = listOf(
             navArgument("taskId") { type = NavType.StringType }
         )
     }
-
     object EditTask : Screen("edit_task/{taskId}") {
         fun createRoute(taskId: String) = "edit_task/$taskId"
         val arguments = listOf(
             navArgument("taskId") { type = NavType.StringType }
         )
     }
-
     object EmployeeTaskDetail : Screen("employee_task_detail/{taskId}") {
         fun createRoute(taskId: String) = "employee_task_detail/$taskId"
         val arguments = listOf(
@@ -385,9 +447,22 @@ sealed class Screen(val route: String) {
         )
     }
 
+    // Leave Management Routes
     object HRLeaveManagement : Screen("hr_leave_management")
 
+    // Office Location and Attendance Routes
     object HROfficeLocation : Screen("hr_office_location")
     object HRCompanyAttendance : Screen("hr_company_attendance")
+
+    // Meeting Management Routes
+    object HRMeetingManagement : Screen("hr_meeting_management")
+    object CreateMeeting : Screen("create_meeting")
+    object EditMeeting : Screen("edit_meeting/{meetingId}") {
+        fun createRoute(meetingId: String) = "edit_meeting/$meetingId"
+        val arguments = listOf(
+            navArgument("meetingId") { type = NavType.StringType }
+        )
+    }
+    object EmployeeMeeting : Screen("employee_meeting")
 
 }

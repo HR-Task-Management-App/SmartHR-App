@@ -8,8 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
 
-//    const val BASE_URL = "https://smarthr-backend-jx0v.onrender.com/"
-        const val BASE_URL = "https://3e1dce4d1855.ngrok-free.app/"
+    const val BASE_URL = "https://smarthr-backend-jx0v.onrender.com/"
+//        const val BASE_URL = "https://3e1dce4d1855.ngrok-free.app/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
