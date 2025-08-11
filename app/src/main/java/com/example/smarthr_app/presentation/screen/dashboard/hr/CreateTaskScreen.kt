@@ -4,53 +4,16 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,10 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.smarthr_app.data.model.TaskPriority
-import com.example.smarthr_app.data.model.TaskStatus
+import com.example.smarthr_app.data.model.*
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.CompanyViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
@@ -85,13 +48,11 @@ fun CreateTaskScreen(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedPriority by remember { mutableStateOf<TaskPriority?>(null) }
-    var selectedStatus by remember { mutableStateOf<TaskStatus?>(null) }
     var selectedEmployees by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     var expandedPriority by remember { mutableStateOf(false) }
-    var expandedStatus by remember { mutableStateOf(false) }
     var showEmployeeSelector by remember { mutableStateOf(false) }
 
     val isEditing = taskId != null
@@ -109,8 +70,6 @@ fun CreateTaskScreen(
         if (isEditing && taskId != null) {
             taskViewModel.loadTaskById(taskId)
         } else {
-            // Set default values for new task
-            selectedStatus = TaskStatus.NOT_STARTED
         }
     }
 
@@ -123,8 +82,6 @@ fun CreateTaskScreen(
                     title = task.title
                     description = task.description
                     selectedPriority = task.priority
-                    selectedStatus = task.status
-                    // Note: For editing, you'd need to get employee IDs from the full detail endpoint
                 }
                 else -> {}
             }
@@ -176,10 +133,6 @@ fun CreateTaskScreen(
                 ToastHelper.showErrorToast(context, "Please select a priority")
                 return
             }
-            selectedStatus == null -> {
-                ToastHelper.showErrorToast(context, "Please select a status")
-                return
-            }
             selectedEmployees.isEmpty() -> {
                 ToastHelper.showErrorToast(context, "Please assign at least one employee")
                 return
@@ -192,7 +145,7 @@ fun CreateTaskScreen(
                 title = title.trim(),
                 description = description.trim(),
                 priority = selectedPriority!!.name,
-                status = selectedStatus!!.name,
+                status = TaskStatus.NOT_STARTED.name,
                 employees = selectedEmployees.toList()
             )
         } else {
@@ -201,7 +154,7 @@ fun CreateTaskScreen(
                 title = title.trim(),
                 description = description.trim(),
                 priority = selectedPriority!!.name,
-                status = selectedStatus!!.name,
+                status = TaskStatus.NOT_STARTED.name,
                 employees = selectedEmployees.toList(),
                 imageUri = selectedImageUri
             )
@@ -382,56 +335,6 @@ fun CreateTaskScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Status Dropdown
-                    ExposedDropdownMenuBox(
-                        expanded = expandedStatus,
-                        onExpandedChange = { expandedStatus = !expandedStatus }
-                    ) {
-                        OutlinedTextField(
-                            value = when (selectedStatus) {
-                                TaskStatus.NOT_STARTED -> "Not Started"
-                                TaskStatus.IN_PROGRESS -> "In Progress"
-                                TaskStatus.FINISHED -> "Finished"
-                                null -> ""
-                            },
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Status") },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(
-                                    expanded = expandedStatus
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                focusedLabelColor = PrimaryPurple
-                            )
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedStatus,
-                            onDismissRequest = { expandedStatus = false }
-                        ) {
-                            TaskStatus.values().forEach { status ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(when (status) {
-                                            TaskStatus.NOT_STARTED -> "Not Started"
-                                            TaskStatus.IN_PROGRESS -> "In Progress"
-                                            TaskStatus.FINISHED -> "Finished"
-                                        })
-                                    },
-                                    onClick = {
-                                        selectedStatus = status
-                                        expandedStatus = false
-                                    }
-                                )
-                            }
-                        }
-                    }
                 }
             }
 

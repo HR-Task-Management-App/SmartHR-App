@@ -119,10 +119,9 @@ interface ApiService {
         @Part("title") title: RequestBody,
         @Part("description") description: RequestBody,
         @Part("priority") priority: RequestBody,
-        @Part("status") status: RequestBody,
         @Part employees: List<MultipartBody.Part>,
         @Part image: MultipartBody.Part?
-    ): Response<TaskFullDetailResponse>
+    ): Response<TaskResponse> // Changed from TaskFullDetailResponse
 
     // Alternative method for when no employees are selected
     @Multipart
@@ -132,9 +131,8 @@ interface ApiService {
         @Part("title") title: RequestBody,
         @Part("description") description: RequestBody,
         @Part("priority") priority: RequestBody,
-        @Part("status") status: RequestBody,
         @Part image: MultipartBody.Part?
-    ): Response<TaskFullDetailResponse>
+    ): Response<TaskResponse> // Changed from TaskFullDetailResponse
 
     @GET("tasks/{id}")
     suspend fun getTaskById(
@@ -142,8 +140,13 @@ interface ApiService {
         @Path("id") taskId: String
     ): Response<TaskResponse>
 
-    @GET("tasks/user")
+    @GET("tasks/userTasks")
     suspend fun getUserTasks(
+        @Header("Authorization") token: String
+    ): Response<List<TaskResponse>>
+
+    @GET("tasks/companyTasks")
+    suspend fun getCompanyTasks(
         @Header("Authorization") token: String
     ): Response<List<TaskResponse>>
 

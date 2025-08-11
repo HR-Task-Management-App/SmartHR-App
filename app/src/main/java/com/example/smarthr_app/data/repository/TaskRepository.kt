@@ -3,13 +3,7 @@ package com.example.smarthr_app.data.repository
 import android.content.Context
 import android.net.Uri
 import com.example.smarthr_app.data.local.DataStoreManager
-import com.example.smarthr_app.data.model.CommentRequest
-import com.example.smarthr_app.data.model.CommentResponse
-import com.example.smarthr_app.data.model.SuccessApiResponseMessage
-import com.example.smarthr_app.data.model.TaskFullDetailResponse
-import com.example.smarthr_app.data.model.TaskRequest
-import com.example.smarthr_app.data.model.TaskResponse
-import com.example.smarthr_app.data.model.UpdateTaskStatusRequest
+import com.example.smarthr_app.data.model.*
 import com.example.smarthr_app.data.remote.RetrofitInstance
 import com.example.smarthr_app.utils.Resource
 import kotlinx.coroutines.flow.first
@@ -30,16 +24,14 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
         status: String,
         employees: List<String>,
         imageUri: Uri?
-    ): Resource<TaskFullDetailResponse> {
+    ): Resource<TaskResponse> { // Changed return type
         return try {
             val token = dataStoreManager.token.first()
             if (token != null) {
                 val titleBody = title.toRequestBody("text/plain".toMediaTypeOrNull())
                 val descBody = description.toRequestBody("text/plain".toMediaTypeOrNull())
                 val priorityBody = priority.toRequestBody("text/plain".toMediaTypeOrNull())
-                val statusBody = status.toRequestBody("text/plain".toMediaTypeOrNull())
 
-                // Create employee parts - each employee ID as a separate form field
                 val employeeParts = employees.map { employeeId ->
                     MultipartBody.Part.createFormData("employees", employeeId)
                 }
@@ -48,7 +40,6 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                     val file = createImageFile(context, uri)
                     val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
                     val part = MultipartBody.Part.createFormData("image", file.name, requestFile)
-                    // Clean up file after creating the part
                     file.deleteOnExit()
                     part
                 }
@@ -59,18 +50,15 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         titleBody,
                         descBody,
                         priorityBody,
-                        statusBody,
                         employeeParts,
                         imagePart
                     )
                 } else {
-                    // If no employees selected, use alternative method
                     RetrofitInstance.api.createTaskWithoutEmployees(
                         "Bearer $token",
                         titleBody,
                         descBody,
                         priorityBody,
-                        statusBody,
                         imagePart
                     )
                 }
@@ -81,17 +69,17 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                     } ?: Resource.Error("Task created but no data received")
                 } else {
                     val errorMessage = try {
-                        response.errorBody()?.string() ?: "Unknown error"
+                        response.errorBody()?.string() ?: "Unknown error occurred"
                     } catch (e: Exception) {
                         "Failed to create task: ${response.code()}"
                     }
-                    Resource.Error(errorMessage)
+                    Resource.Error("Failed to create task: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -101,17 +89,47 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
             if (token != null) {
                 val response = RetrofitInstance.api.getUserTasks("Bearer $token")
                 if (response.isSuccessful) {
-                    response.body()?.let {
-                        Resource.Success(it)
+                    response.body()?.let { taskList ->
+                        Resource.Success(taskList)
                     } ?: Resource.Error("No tasks data received")
                 } else {
-                    Resource.Error("Failed to load tasks: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to load tasks: ${response.code()}"
+                    }
+                    Resource.Error("Failed to load tasks: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
+        }
+    }
+
+    suspend fun getCompanyTasks(): Resource<List<TaskResponse>> {
+        return try {
+            val token = dataStoreManager.token.first()
+            if (token != null) {
+                val response = RetrofitInstance.api.getCompanyTasks("Bearer $token")
+                if (response.isSuccessful) {
+                    response.body()?.let { taskList ->
+                        Resource.Success(taskList)
+                    } ?: Resource.Error("No tasks data received")
+                } else {
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to load company tasks: ${response.code()}"
+                    }
+                    Resource.Error("Failed to load company tasks: $errorMessage")
+                }
+            } else {
+                Resource.Error("No authentication token found")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -125,13 +143,18 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("No task data received")
                 } else {
-                    Resource.Error("Failed to load task: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to load task: ${response.code()}"
+                    }
+                    Resource.Error("Failed to load task: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -153,13 +176,18 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("Task updated but no data received")
                 } else {
-                    Resource.Error("Failed to update task: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to update task: ${response.code()}"
+                    }
+                    Resource.Error("Failed to update task: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -174,13 +202,18 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("Status updated but no data received")
                 } else {
-                    Resource.Error("Failed to update status: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to update status: ${response.code()}"
+                    }
+                    Resource.Error("Failed to update status: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -194,13 +227,18 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("Task deleted but no confirmation received")
                 } else {
-                    Resource.Error("Failed to delete task: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to delete task: ${response.code()}"
+                    }
+                    Resource.Error("Failed to delete task: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -215,13 +253,18 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("Comment added but no data received")
                 } else {
-                    Resource.Error("Failed to add comment: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to add comment: ${response.code()}"
+                    }
+                    Resource.Error("Failed to add comment: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
 
@@ -235,15 +278,52 @@ class TaskRepository(private val dataStoreManager: DataStoreManager) {
                         Resource.Success(it)
                     } ?: Resource.Error("No comments data received")
                 } else {
-                    Resource.Error("Failed to load comments: ${response.message()}")
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Unknown error occurred"
+                    } catch (e: Exception) {
+                        "Failed to load comments: ${response.code()}"
+                    }
+                    Resource.Error("Failed to load comments: $errorMessage")
                 }
             } else {
                 Resource.Error("No authentication token found")
             }
         } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
+            Resource.Error("Network error: ${e.localizedMessage}")
         }
     }
+
+
+    suspend fun checkAndUpdateTaskCompletion(taskId: String): Resource<TaskResponse> {
+        return try {
+            val token = dataStoreManager.token.first()
+            if (token != null) {
+                // First get the current task
+                val taskResponse = RetrofitInstance.api.getTaskById("Bearer $token", taskId)
+                if (taskResponse.isSuccessful) {
+                    taskResponse.body()?.let { task ->
+                        // Check if all employees have finished
+                        val allEmployeesFinished = task.employees?.all { it.taskStatus == TaskStatus.FINISHED } == true
+
+                        if (allEmployeesFinished && task.status != TaskStatus.FINISHED) {
+                            // Auto-complete the task
+                            updateTaskStatus(taskId, TaskStatus.FINISHED.name)
+                        } else {
+                            Resource.Success(task)
+                        }
+                    } ?: Resource.Error("No task data received")
+                } else {
+                    Resource.Error("Failed to load task")
+                }
+            } else {
+                Resource.Error("No authentication token found")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Network error: ${e.localizedMessage}")
+        }
+    }
+
+
 
     private fun createImageFile(context: Context, uri: Uri): File {
         val inputStream = context.contentResolver.openInputStream(uri)

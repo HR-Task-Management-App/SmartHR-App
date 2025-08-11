@@ -1,62 +1,16 @@
 package com.example.smarthr_app.presentation.screen.dashboard.employee
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Help
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,10 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.smarthr_app.data.model.CommentResponse
-import com.example.smarthr_app.data.model.TaskPriority
-import com.example.smarthr_app.data.model.TaskResponse
-import com.example.smarthr_app.data.model.TaskStatus
+import com.example.smarthr_app.data.model.*
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskDescriptionCard
 import com.example.smarthr_app.presentation.screen.dashboard.hr.TaskImageCard
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
@@ -77,8 +28,7 @@ import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,11 +182,6 @@ fun EmployeeTaskDetailScreen(
                     }
 
                     item {
-                        // Assigned Employees Card (mock data since endpoint doesn't return this)
-                        AssignedEmployeesCard()
-                    }
-
-                    item {
                         // Comments Section
                         EmployeeCommentsSection(
                             taskId = taskId,
@@ -252,6 +197,106 @@ fun EmployeeTaskDetailScreen(
                         )
                     }
                 }
+
+
+
+                // Update CommentItem to include HR tag detection
+                @Composable
+                fun CommentItem(comment: CommentResponse) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Avatar
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryPurple.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!comment.author.imageUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = comment.author.imageUrl,
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = PrimaryPurple
+                                )
+                            }
+                        }
+
+                        // Comment Content
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = comment.author.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+
+                                    // Add HR badge if the comment is from HR
+                                    if (isHRUser(comment.author)) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = PrimaryPurple
+                                        ) {
+                                            Text(
+                                                text = "HR",
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = formatTimeAgo(comment.createdAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = comment.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+
+
             }
 
             is Resource.Error -> {
@@ -856,6 +901,14 @@ fun CommentItem(comment: CommentResponse) {
             }
         }
     }
+}
+
+// Helper function to determine if a user is HR
+fun isHRUser(author: UserInfo): Boolean {
+    return author.email.contains("hr", ignoreCase = true) ||
+            author.name.contains("hr", ignoreCase = true) ||
+            author.email.contains("manager", ignoreCase = true) ||
+            author.name.contains("manager", ignoreCase = true)
 }
 
 private fun formatFullDate(dateString: String): String {

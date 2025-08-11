@@ -4,20 +4,16 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smarthr_app.data.model.CommentResponse
-import com.example.smarthr_app.data.model.SuccessApiResponseMessage
-import com.example.smarthr_app.data.model.TaskFullDetailResponse
-import com.example.smarthr_app.data.model.TaskResponse
+import com.example.smarthr_app.data.model.*
 import com.example.smarthr_app.data.repository.TaskRepository
 import com.example.smarthr_app.utils.Resource
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class TaskViewModel(private val taskRepository: TaskRepository) : ViewModel() {
 
-    private val _createTaskState = MutableStateFlow<Resource<TaskFullDetailResponse>?>(null)
-    val createTaskState: StateFlow<Resource<TaskFullDetailResponse>?> = _createTaskState
+    private val _createTaskState = MutableStateFlow<Resource<TaskResponse>?>(null) // Changed type
+    val createTaskState: StateFlow<Resource<TaskResponse>?> = _createTaskState
 
     private val _tasksState = MutableStateFlow<Resource<List<TaskResponse>>?>(null)
     val tasksState: StateFlow<Resource<List<TaskResponse>>?> = _tasksState
@@ -61,6 +57,13 @@ class TaskViewModel(private val taskRepository: TaskRepository) : ViewModel() {
         }
     }
 
+    fun loadCompanyTasks() {
+        viewModelScope.launch {
+            _tasksState.value = Resource.Loading()
+            _tasksState.value = taskRepository.getCompanyTasks()
+        }
+    }
+
     fun loadTaskById(taskId: String) {
         viewModelScope.launch {
             _taskDetailState.value = Resource.Loading()
@@ -84,10 +87,18 @@ class TaskViewModel(private val taskRepository: TaskRepository) : ViewModel() {
         }
     }
 
+    //refresh functionality after status updates
     fun updateTaskStatus(taskId: String, status: String) {
         viewModelScope.launch {
             _updateTaskState.value = Resource.Loading()
-            _updateTaskState.value = taskRepository.updateTaskStatus(taskId, status)
+            val result = taskRepository.updateTaskStatus(taskId, status)
+            _updateTaskState.value = result
+
+            // Refresh company tasks if this was called from HR screen
+            if (result is Resource.Success) {
+                // Auto-refresh to get updated data
+                loadCompanyTasks()
+            }
         }
     }
 

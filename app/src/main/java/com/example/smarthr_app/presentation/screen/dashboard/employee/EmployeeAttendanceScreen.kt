@@ -4,39 +4,15 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -51,6 +27,8 @@ import com.example.smarthr_app.utils.LocationHelper
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun EmployeeAttendanceScreen(
@@ -188,10 +166,12 @@ fun EmployeeAttendanceScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
+
                         Text(
                             text = "Today's Status",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -211,12 +191,13 @@ fun EmployeeAttendanceScreen(
                                             Text(
                                                 text = "Check In",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = Color.Black
                                             )
                                             Text(
                                                 text = formatTime(todayRecord.checkIn ?: ""),
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.Black
                                             )
                                         }
 
@@ -224,13 +205,13 @@ fun EmployeeAttendanceScreen(
                                             Text(
                                                 text = "Check Out",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = Color.Black
                                             )
                                             Text(
-                                                text = if (todayRecord.checkOut != null)
-                                                    formatTime(todayRecord.checkOut) else "Not yet",
+                                                text = if (todayRecord.checkOut != null) formatTime(todayRecord.checkOut) else "Not yet",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.Black
                                             )
                                         }
                                     }
@@ -238,7 +219,7 @@ fun EmployeeAttendanceScreen(
                                     Text(
                                         text = "No attendance recorded for today",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = Color.Black
                                     )
                                 }
                             }

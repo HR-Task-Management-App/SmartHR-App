@@ -1,5 +1,6 @@
 package com.example.smarthr_app.data.model
 
+
 data class TaskRequest(
     val title: String,
     val description: String,
@@ -12,6 +13,14 @@ data class UpdateTaskStatusRequest(
     val status: String
 )
 
+data class EmployeeTaskInfo(
+    val id: String,
+    val name: String,
+    val email: String,
+    val imageUrl: String?,
+    val taskStatus: TaskStatus? = null // Employee's individual status for this task
+)
+
 data class TaskResponse(
     val id: String,
     val imageUrl: String?,
@@ -22,7 +31,8 @@ data class TaskResponse(
     val updatedAt: String,
     val priority: TaskPriority,
     val status: TaskStatus,
-    val assignee: String
+    val assignee: UserInfo, // HR who created the task
+    val employees: List<EmployeeTaskInfo>? = null // Employees with their individual status
 )
 
 data class TaskFullDetailResponse(
@@ -36,7 +46,7 @@ data class TaskFullDetailResponse(
     val priority: TaskPriority,
     val status: TaskStatus,
     val assignee: UserInfo,
-    val employees: List<UserInfo>
+    val employees: List<EmployeeTaskInfo>
 )
 
 data class CommentRequest(
