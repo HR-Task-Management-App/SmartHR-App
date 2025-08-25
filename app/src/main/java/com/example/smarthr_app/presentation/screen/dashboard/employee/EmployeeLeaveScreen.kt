@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,24 +59,81 @@ import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.LeaveViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
+import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmployeeLeaveScreen(
-    leaveViewModel: LeaveViewModel
+    leaveViewModel: LeaveViewModel,
+    authViewModel: AuthViewModel,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     val context = LocalContext.current
     val employeeLeavesState by leaveViewModel.employeeLeavesState.collectAsState(initial = null)
     val submitLeaveState by leaveViewModel.submitLeaveState.collectAsState(initial = null)
     val updateLeaveState by leaveViewModel.updateLeaveState.collectAsState(initial = null)
     val leaveSummary by leaveViewModel.leaveSummary.collectAsState()
+    val user by authViewModel.user.collectAsState(initial = null)
+
+    // Check if user has joined a company
+    val hasJoinedCompany = !user?.companyCode.isNullOrBlank()
+    val isWaitlisted = !user?.waitingCompanyCode.isNullOrBlank()
 
     var selectedFilter by remember { mutableStateOf("Review") }
     var showSubmitDialog by remember { mutableStateOf(false) }
     var editingLeave by remember { mutableStateOf<EmployeeLeaveResponseDto?>(null) }
 
     LaunchedEffect(Unit) {
-        leaveViewModel.loadEmployeeLeaves()
+        if (hasJoinedCompany) {
+            leaveViewModel.loadEmployeeLeaves()
+        }
+    }
+
+    // Show lock screen if user hasn't joined a company
+    if (!hasJoinedCompany && !isWaitlisted) {
+        CompanyLockScreen(
+            title = "Leave Feature Locked",
+            onJoinCompanyClick = onNavigateToCompanyManagement
+        )
+        return
+    }
+
+    // Show waiting message if user is waitlisted
+    if (isWaitlisted && !hasJoinedCompany) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Waiting for approval",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Waiting for HR Approval",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your request to join ${user?.waitingCompanyCode} is pending. HR will review your request soon.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+        return
     }
 
     // Handle submit/update responses

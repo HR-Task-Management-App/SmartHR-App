@@ -89,19 +89,15 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf(UserRole.ROLE_USER) }
-    var companyCode by remember { mutableStateOf("") }
 
     // Validation states
     var nameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var phoneError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
-    var companyCodeError by remember { mutableStateOf("") }
 
     val registerState by viewModel.registerState.collectAsState(initial = null)
     val googleSignUpAuthState by viewModel.googleSignUpAuthState.collectAsState(initial = null)
-
-
 
     val googleSignInClient = remember {
         GoogleSignIn.getClient(
@@ -136,7 +132,11 @@ fun RegisterScreen(
     LaunchedEffect(registerState) {
         when (val currentState = registerState) {
             is Resource.Success -> {
-                ToastHelper.showSuccessToast(context, "Account created successfully!")
+                if (selectedRole == UserRole.ROLE_USER) {
+                    ToastHelper.showSuccessToast(context, "Account created successfully! You can now join a company by entering company code.")
+                } else {
+                    ToastHelper.showSuccessToast(context, "Account created successfully!")
+                }
                 delay(500)
                 if (currentState.data.user.role == "ROLE_HR") {
                     onNavigateToHRDashboard()
@@ -151,9 +151,6 @@ fun RegisterScreen(
                     currentState.message.contains("email already exists", ignoreCase = true) ||
                             currentState.message.contains("account with this email", ignoreCase = true) -> {
                         ToastHelper.showErrorToast(context, "Account with this email already exists")
-                    }
-                    currentState.message.contains("company code", ignoreCase = true) -> {
-                        ToastHelper.showErrorToast(context, "Company code does not exist. Please check with your HR.")
                     }
                     currentState.message.contains("network", ignoreCase = true) -> {
                         ToastHelper.showErrorToast(context, "Network error. Please check your internet connection.")
@@ -170,7 +167,11 @@ fun RegisterScreen(
     LaunchedEffect(googleSignUpAuthState) {
         when (val currentState = googleSignUpAuthState) {
             is Resource.Success -> {
-                ToastHelper.showSuccessToast(context, "SignUp successful!")
+                if (selectedRole == UserRole.ROLE_USER) {
+                    ToastHelper.showSuccessToast(context, "Account created successfully! You can now join a company by entering company code.")
+                } else {
+                    ToastHelper.showSuccessToast(context, "SignUp successful!")
+                }
                 delay(500)
                 if (currentState.data.user.role == "ROLE_HR") {
                     onNavigateToHRDashboard()
@@ -223,41 +224,26 @@ fun RegisterScreen(
         }
     }
 
-    LaunchedEffect(companyCode) {
-        if (companyCode.isNotBlank() && selectedRole == UserRole.ROLE_USER) {
-            val validation = ValidationUtils.validateCompanyCode(companyCode)
-            companyCodeError = if (validation.isValid) "" else validation.errorMessage
-        } else {
-            companyCodeError = ""
-        }
-    }
-
     fun validateAllFields(): Boolean {
         val nameValidation = ValidationUtils.validateName(name)
         val emailValidation = ValidationUtils.validateEmail(email)
         val phoneValidation = ValidationUtils.validatePhone(phone)
         val passwordValidation = ValidationUtils.validatePassword(password)
-        val companyCodeValidation = if (selectedRole == UserRole.ROLE_USER && companyCode.isNotBlank()) {
-            ValidationUtils.validateCompanyCode(companyCode)
-        } else ValidationResult(true, "")
 
         nameError = if (nameValidation.isValid) "" else nameValidation.errorMessage
         emailError = if (emailValidation.isValid) "" else emailValidation.errorMessage
         phoneError = if (phoneValidation.isValid) "" else phoneValidation.errorMessage
         passwordError = if (passwordValidation.isValid) "" else passwordValidation.errorMessage
-        companyCodeError = if (companyCodeValidation.isValid) "" else companyCodeValidation.errorMessage
 
         val hasErrors = !nameValidation.isValid || !emailValidation.isValid ||
-                !phoneValidation.isValid || !passwordValidation.isValid ||
-                !companyCodeValidation.isValid
+                !phoneValidation.isValid || !passwordValidation.isValid
 
         if (hasErrors) {
             val firstError = listOfNotNull(
                 nameValidation.errorMessage.takeIf { !nameValidation.isValid },
                 emailValidation.errorMessage.takeIf { !emailValidation.isValid },
                 phoneValidation.errorMessage.takeIf { !phoneValidation.isValid },
-                passwordValidation.errorMessage.takeIf { !passwordValidation.isValid },
-                companyCodeValidation.errorMessage.takeIf { !companyCodeValidation.isValid }
+                passwordValidation.errorMessage.takeIf { !passwordValidation.isValid }
             ).firstOrNull()
 
             firstError?.let { ToastHelper.showErrorToast(context, it) }
@@ -429,26 +415,6 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Company Code Field (only for employees)
-                    if (selectedRole == UserRole.ROLE_USER) {
-                        OutlinedTextField(
-                            value = companyCode,
-                            onValueChange = { companyCode = it },
-                            label = { Text("Company Code (Optional)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            isError = companyCodeError.isNotEmpty(),
-                            supportingText = if (companyCodeError.isNotEmpty()) {
-                                { Text(companyCodeError, color = MaterialTheme.colorScheme.error) }
-                            } else null,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                focusedLabelColor = PrimaryPurple
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
                     // Password Field
                     OutlinedTextField(
                         value = password,
@@ -477,6 +443,24 @@ fun RegisterScreen(
                         )
                     )
 
+                    // Info message for employees
+                    if (selectedRole == UserRole.ROLE_USER) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = PrimaryPurple.copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Text(
+                                text = "💡 After creating your account, you can join a company by entering the company code provided by your HR.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PrimaryPurple,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     val currentRegisterState = registerState
@@ -494,7 +478,7 @@ fun RegisterScreen(
                                         password = password,
                                         gender = "M",
                                         role = if (selectedRole == UserRole.ROLE_HR) "ROLE_HR" else "ROLE_USER",
-                                        companyCode = if (selectedRole == UserRole.ROLE_USER && companyCode.isNotBlank()) companyCode.trim() else null
+                                        companyCode = null // Always null now
                                     )
                                 )
                             }
@@ -562,10 +546,8 @@ fun RegisterScreen(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-
                 }
             }
-
         }
     }
 }

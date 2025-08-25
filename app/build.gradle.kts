@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.ksp)
 }
 
+
 android {
     namespace = "com.example.smarthr_app"
     compileSdk = 35

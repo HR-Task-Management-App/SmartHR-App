@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.airbnb.lottie.compose.LottieAnimation
@@ -58,6 +59,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.smarthr_app.R
 import com.example.smarthr_app.data.model.User
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AttendanceViewModel
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
@@ -76,8 +78,9 @@ fun EmployeeDashboardScreen(
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToTaskDetail: (String) -> Unit,
-    onNavigateToChatList:()->Unit,
-    onNavigateToMeetings: () -> Unit
+    onNavigateToChatList: () -> Unit,
+    onNavigateToMeetings: () -> Unit,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     val user by authViewModel.user.collectAsState(initial = null)
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -92,9 +95,15 @@ fun EmployeeDashboardScreen(
 
     LaunchedEffect(user) {
         user?.let {
-            chatViewModel.initSocket(it.userId)
+            if (!it.companyCode.isNullOrBlank()) {
+                chatViewModel.initSocket(it.userId)
+            }
         }
     }
+
+    // Check if user has joined a company
+    val hasJoinedCompany = !user?.companyCode.isNullOrBlank()
+    val isWaitlisted = !user?.waitingCompanyCode.isNullOrBlank()
 
     val tabs = listOf("Home", "Attendance", "Tasks", "Leave")
 
@@ -128,21 +137,134 @@ fun EmployeeDashboardScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (selectedTabIndex) {
-                0 -> HomeTab(user = user, authViewModel = authViewModel, chatViewModel = chatViewModel, onNavigateToProfile = onNavigateToProfile, onNavigateToMeetings = onNavigateToMeetings, onNavigateToChatList = onNavigateToChatList )
-                1 -> EmployeeAttendanceScreen(attendanceViewModel = attendanceViewModel)
-                2 -> EmployeeTaskScreen(
-                    taskViewModel = taskViewModel,
-                    onNavigateToTaskDetail = onNavigateToTaskDetail
+                0 -> HomeTab(
+                    user = user,
+                    authViewModel = authViewModel,
+                    chatViewModel = chatViewModel,
+                    onNavigateToProfile = onNavigateToProfile,
+                    onNavigateToMeetings = onNavigateToMeetings,
+                    onNavigateToChatList = onNavigateToChatList,
+                    onNavigateToCompanyManagement = onNavigateToCompanyManagement
                 )
-                3 -> EmployeeLeaveScreen(leaveViewModel = leaveViewModel)
+                1 -> {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Always show the actual attendance screen content
+                        EmployeeAttendanceScreen(
+                            attendanceViewModel = attendanceViewModel,
+                            authViewModel = authViewModel,
+                            onNavigateToCompanyManagement = onNavigateToCompanyManagement
+                        )
+
+                        // Show transparent lock screen overlay if not joined
+                        if (!hasJoinedCompany && !isWaitlisted) {
+                            CompanyLockScreen(
+                                title = "Attendance Feature Locked",
+                                onJoinCompanyClick = onNavigateToCompanyManagement
+                            )
+                        } else if (isWaitlisted && !hasJoinedCompany) {
+                            // Show waiting overlay
+                            WaitingApprovalOverlay(
+                                companyCode = user?.waitingCompanyCode ?: ""
+                            )
+                        }
+                    }
+                }
+                2 -> {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Always show the actual task screen content
+                        EmployeeTaskScreen(
+                            taskViewModel = taskViewModel,
+                            authViewModel = authViewModel,
+                            onNavigateToTaskDetail = onNavigateToTaskDetail,
+                            onNavigateToCompanyManagement = onNavigateToCompanyManagement
+                        )
+
+                        // Show transparent lock screen overlay if not joined
+                        if (!hasJoinedCompany && !isWaitlisted) {
+                            CompanyLockScreen(
+                                title = "Tasks Feature Locked",
+                                onJoinCompanyClick = onNavigateToCompanyManagement
+                            )
+                        } else if (isWaitlisted && !hasJoinedCompany) {
+                            // Show waiting overlay
+                            WaitingApprovalOverlay(
+                                companyCode = user?.waitingCompanyCode ?: ""
+                            )
+                        }
+                    }
+                }
+                3 -> {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Always show the actual leave screen content
+                        EmployeeLeaveScreen(
+                            leaveViewModel = leaveViewModel,
+                            authViewModel = authViewModel,
+                            onNavigateToCompanyManagement = onNavigateToCompanyManagement
+                        )
+
+                        // Show transparent lock screen overlay if not joined
+                        if (!hasJoinedCompany && !isWaitlisted) {
+                            CompanyLockScreen(
+                                title = "Leave Feature Locked",
+                                onJoinCompanyClick = onNavigateToCompanyManagement
+                            )
+                        } else if (isWaitlisted && !hasJoinedCompany) {
+                            // Show waiting overlay
+                            WaitingApprovalOverlay(
+                                companyCode = user?.waitingCompanyCode ?: ""
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun WaitingApprovalOverlay(
+    companyCode: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.85f)), // Black background
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = "Waiting for approval",
+                modifier = Modifier.size(80.dp),
+                tint = Color(0xFFFF9800) // Keep orange color for waiting icon
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Waiting for HR Approval",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White, // White text
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Your request to join $companyCode is pending. HR will review your request soon.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f), // White text with slight transparency
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+            )
         }
     }
 }
@@ -154,7 +276,8 @@ fun HomeTab(
     chatViewModel: ChatViewModel,
     onNavigateToProfile: () -> Unit,
     onNavigateToMeetings: () -> Unit,
-    onNavigateToChatList: () -> Unit
+    onNavigateToChatList: () -> Unit,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -184,7 +307,7 @@ fun HomeTab(
                                 .size(48.dp)
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.2f))
-                                .clickable { onNavigateToProfile() }, // Made clickable
+                                .clickable { onNavigateToProfile() },
                             contentAlignment = Alignment.Center
                         ) {
                             val imageUrl = user?.imageUrl
@@ -197,12 +320,12 @@ fun HomeTab(
                                         .size(48.dp)
                                         .clip(CircleShape),
                                     loading = {
-                                        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(
-                                            R.raw.image_loading))
+                                        val composition by rememberLottieComposition(
+                                            LottieCompositionSpec.RawRes(R.raw.image_loading)
+                                        )
                                         val progress by animateLottieCompositionAsState(composition)
                                         Box(
-                                            modifier = Modifier
-                                                .fillMaxSize(),
+                                            modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             LottieAnimation(
@@ -242,26 +365,34 @@ fun HomeTab(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Employee",
+                                text = if (!user?.companyCode.isNullOrBlank())
+                                    "Employee - ${user?.companyCode}"
+                                else if (!user?.waitingCompanyCode.isNullOrBlank())
+                                    "Waiting for approval"
+                                else
+                                    "No company assigned",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color.White.copy(alpha = 0.9f)
                             )
                         }
                     }
 
-                    // Logout button
+                    // Action buttons - ALWAYS SHOW CHAT AND LOGOUT
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Chat button - ALWAYS SHOW (will have lock screen inside if needed)
                         IconButton(
                             onClick = {
                                 onNavigateToChatList()
-                                chatViewModel.getMyChatList(companyCode = user?.companyCode!!)
+                                if (!user?.companyCode.isNullOrBlank()) {
+                                    chatViewModel.getMyChatList(companyCode = user?.companyCode!!)
+                                }
                             }
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Chat,
-                                contentDescription = "Logout",
+                                contentDescription = "Chat",
                                 tint = Color.White
                             )
                         }
@@ -279,23 +410,81 @@ fun HomeTab(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-
-
             }
         }
 
-  Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Meetings Card
+        // Company Management Card - show if user needs to join company
+        if (user?.companyCode.isNullOrBlank()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clickable { onNavigateToCompanyManagement() },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF9800).copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Company Management",
+                            modifier = Modifier.size(24.dp),
+                            tint = Color(0xFFFF9800)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (!user?.waitingCompanyCode.isNullOrBlank())
+                                "Company Request Pending"
+                            else
+                                "Join a Company",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF9800)
+                        )
+                        Text(
+                            text = if (!user?.waitingCompanyCode.isNullOrBlank())
+                                "Your request to join ${user?.waitingCompanyCode} is pending"
+                            else
+                                "Join a company to access all features",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Go to Company Management",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Meetings Card - ALWAYS SHOW (will have lock screen inside if needed)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .clickable(
-                    onClick = {
-                        onNavigateToMeetings()
-                    }
-                ), // Make it clickable
+                .clickable { onNavigateToMeetings() },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
@@ -343,94 +532,5 @@ fun HomeTab(
                 )
             }
         }
-
-
-    }
-}
-
-@Composable
-fun AttendanceTab() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Schedule,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Attendance Screen",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "Coming Soon...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun TasksTab() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Assignment,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Tasks Screen",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "Coming Soon...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun LeaveTab() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.BeachAccess,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Leave Screen",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "Coming Soon...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }

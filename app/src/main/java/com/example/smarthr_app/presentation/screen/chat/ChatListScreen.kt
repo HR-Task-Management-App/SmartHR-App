@@ -19,17 +19,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,11 +45,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.smarthr_app.data.model.Chat
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.presentation.viewmodel.ChatViewModel
@@ -55,11 +64,75 @@ fun ChatListScreen(
     authViewModel: AuthViewModel,
     onNavigateToUserListScreen: () -> Unit,
     onNavigateChatScreen: (String, String, String) -> Unit,
-    goToBack:()-> Unit
+    goToBack: () -> Unit,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     val chatListResource by chatViewModel.chatList.collectAsState()
+    val user by authViewModel.user.collectAsState(initial = null)
 
+    // Check if user has joined a company
+    val hasJoinedCompany = !user?.companyCode.isNullOrBlank()
+    val isWaitlisted = !user?.waitingCompanyCode.isNullOrBlank()
 
+    LaunchedEffect(Unit) {
+        if (hasJoinedCompany) {
+            user?.let { currentUser ->
+                chatViewModel.initSocket(currentUser.userId)
+                chatViewModel.getMyChatList(currentUser.companyCode!!)
+            }
+        }
+    }
+
+    // Show lock screen if user hasn't joined a company
+    if (!hasJoinedCompany && !isWaitlisted) {
+        CompanyLockScreen(
+            title = "Chat Feature Locked",
+            onJoinCompanyClick = onNavigateToCompanyManagement
+        )
+        return
+    }
+
+    // Show waiting message if user is waitlisted
+    if (isWaitlisted && !hasJoinedCompany) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Waiting for approval",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Waiting for HR Approval",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your request to join ${user?.waitingCompanyCode ?: ""} is pending. HR will review your request soon.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+                )
+            }
+        }
+        return
+    }
+
+    // Normal chat interface (only show if user has joined company)
     Box(
         modifier = Modifier
             .statusBarsPadding()
@@ -67,8 +140,39 @@ fun ChatListScreen(
             .fillMaxSize()
     ) {
         Column {
-            TopAppBarContent(goToBack = goToBack)
+            // Top Bar
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = PrimaryPurple),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = goToBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "Messages",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Chat content
             when (chatListResource) {
                 is Resource.Loading -> {
                     Box(
@@ -111,11 +215,17 @@ fun ChatListScreen(
                 }
 
                 null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No chats found", color = Color.Gray)
+                    }
                 }
             }
         }
 
-        // Floating Button
+        // Floating Button (only show if user has joined company)
         FloatingActionButton(
             onClick = { onNavigateToUserListScreen() },
             modifier = Modifier
@@ -129,19 +239,74 @@ fun ChatListScreen(
             Icon(Icons.Default.Add, contentDescription = "Add Chat")
         }
     }
-}
 
 
+        // Show transparent overlay based on company status
+        if (!hasJoinedCompany && !isWaitlisted) {
+            CompanyLockScreen(
+                title = "Chat Feature Locked",
+                onJoinCompanyClick = onNavigateToCompanyManagement
+            )
+        } else if (isWaitlisted && !hasJoinedCompany) {
+            WaitingApprovalOverlay(
+                companyCode = user?.waitingCompanyCode ?: ""
+            )
+        }
+    }
 
 @Composable
-fun ChatListRow(chatItem: Chat,onNavigateChatScreen:(String,String,String)->Unit,chatViewModel: ChatViewModel) {
+fun WaitingApprovalOverlay(
+    companyCode: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.85f)), // Black background
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = "Waiting for approval",
+                modifier = Modifier.size(80.dp),
+                tint = Color(0xFFFF9800) // Keep orange color for waiting icon
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Waiting for HR Approval",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White, // White text
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Your request to join $companyCode is pending. HR will review your request soon.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f), // White text with slight transparency
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+            )
+        }
+    }
+}
 
+@Composable
+fun ChatListRow(chatItem: Chat, onNavigateChatScreen: (String, String, String) -> Unit, chatViewModel: ChatViewModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
                 onClick = {
-                    onNavigateChatScreen(chatItem.user2.id, Uri.encode(chatItem.user2.imageUrl?:"https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_1280.png"),chatItem.user2.name)
+                    onNavigateChatScreen(
+                        chatItem.user2.id,
+                        Uri.encode(chatItem.user2.imageUrl ?: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_1280.png"),
+                        chatItem.user2.name
+                    )
                 }
             )
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -166,10 +331,9 @@ fun ChatListRow(chatItem: Chat,onNavigateChatScreen:(String,String,String)->Unit
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (chatItem.lastMessageSender == chatItem.user1.id) {
-                    // Show tick icons only if the sender is user1 (current user)
                     val tickIcon = when (chatItem.lastMessageStatus) {
-                        "SEEN" -> Icons.Default.DoneAll // double tick
-                        "DELIVERED" -> Icons.Default.Done // single tick
+                        "SEEN" -> Icons.Default.DoneAll
+                        "DELIVERED" -> Icons.Default.Done
                         else -> null
                     }
 
@@ -178,7 +342,9 @@ fun ChatListRow(chatItem: Chat,onNavigateChatScreen:(String,String,String)->Unit
                             imageVector = it,
                             contentDescription = chatItem.lastMessageStatus,
                             tint = if (chatItem.lastMessageStatus == "SEEN") Color.Blue else Color.Gray,
-                            modifier = Modifier.size(18.dp).padding(end = 4.dp)
+                            modifier = Modifier
+                                .size(18.dp)
+                                .padding(end = 4.dp)
                         )
                     }
                 }
@@ -192,14 +358,13 @@ fun ChatListRow(chatItem: Chat,onNavigateChatScreen:(String,String,String)->Unit
             }
         }
 
-
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = chatItem.lastUpdated.toReadableTime(),
                 color = Color.Gray,
                 fontSize = 12.sp
             )
-            if (chatItem.lastMessageSender!=chatItem.user1.id && chatItem.lastMessageStatus != "SEEN") {
+            if (chatItem.lastMessageSender != chatItem.user1.id && chatItem.lastMessageStatus != "SEEN") {
                 Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
@@ -211,7 +376,6 @@ fun ChatListRow(chatItem: Chat,onNavigateChatScreen:(String,String,String)->Unit
         }
     }
 }
-
 
 @Composable
 fun TopAppBarContent(
@@ -230,6 +394,6 @@ fun TopAppBarContent(
             }
         ))
         Text("Messages", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.width(24.dp)) // to balance icon
+        Spacer(modifier = Modifier.width(24.dp))
     }
 }

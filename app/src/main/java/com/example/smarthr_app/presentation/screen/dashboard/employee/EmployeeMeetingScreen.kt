@@ -66,6 +66,7 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.smarthr_app.data.model.MeetingResponseDto
 import com.example.smarthr_app.data.model.UserInfo
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
 import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.presentation.viewmodel.MeetingViewModel
@@ -78,20 +79,27 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun EmployeeMeetingScreen(
     meetingViewModel: MeetingViewModel,
-    authViewModel: AuthViewModel, // Add AuthViewModel to get current user
-    onNavigateBack: () -> Unit
+    authViewModel: AuthViewModel,
+    onNavigateBack: () -> Unit,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     val context = LocalContext.current
     val meetingsState by meetingViewModel.meetingsState.collectAsState(initial = null)
     val respondToMeetingState by meetingViewModel.respondToMeetingState.collectAsState(initial = null)
     val currentUser by authViewModel.user.collectAsState(initial = null)
 
+    // Check if user has joined a company
+    val hasJoinedCompany = !currentUser?.companyCode.isNullOrBlank()
+    val isWaitlisted = !currentUser?.waitingCompanyCode.isNullOrBlank()
+
     var selectedFilter by remember { mutableStateOf("upcoming") } // "upcoming" or "past"
     var showParticipantsDialog by remember { mutableStateOf(false) }
     var selectedMeeting by remember { mutableStateOf<MeetingResponseDto?>(null) }
 
     LaunchedEffect(Unit) {
-        meetingViewModel.loadMeetings()
+        if (hasJoinedCompany) {
+            meetingViewModel.loadMeetings()
+        }
     }
 
     // Handle respond to meeting response
@@ -110,6 +118,56 @@ fun EmployeeMeetingScreen(
         }
     }
 
+    // Show lock screen if user hasn't joined a company
+    if (!hasJoinedCompany && !isWaitlisted) {
+        CompanyLockScreen(
+            title = "Meetings Feature Locked",
+            onJoinCompanyClick = onNavigateToCompanyManagement
+        )
+        return
+    }
+
+    // Show waiting message if user is waitlisted
+    if (isWaitlisted && !hasJoinedCompany) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Waiting for approval",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Waiting for HR Approval",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your request to join ${currentUser?.waitingCompanyCode ?: ""} is pending. HR will review your request soon.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+                )
+            }
+        }
+        return
+    }
+
+    // Normal meeting interface (only show if user has joined company)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -199,7 +257,7 @@ fun EmployeeMeetingScreen(
             }
 
             is Resource.Success -> {
-                val meetings = state.data ?: emptyList() // Safe null check
+                val meetings = state.data ?: emptyList()
                 val currentDateTime = LocalDateTime.now()
                 val filteredMeetings = meetings.filter { meeting ->
                     try {
@@ -210,7 +268,7 @@ fun EmployeeMeetingScreen(
                             else -> true
                         }
                     } catch (e: Exception) {
-                        false // Skip meetings with invalid dates
+                        false
                     }
                 }
 
@@ -234,7 +292,7 @@ fun EmployeeMeetingScreen(
                                     selectedMeeting = meeting
                                     showParticipantsDialog = true
                                 },
-                                currentUserId = currentUser?.userId, // Pass current user ID
+                                currentUserId = currentUser?.userId,
                                 isLoading = respondToMeetingState is Resource.Loading
                             )
                         }
@@ -302,12 +360,26 @@ fun EmployeeMeetingScreen(
             }
 
             null -> {
-                // Initial state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = PrimaryPurple)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EventNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No meetings available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

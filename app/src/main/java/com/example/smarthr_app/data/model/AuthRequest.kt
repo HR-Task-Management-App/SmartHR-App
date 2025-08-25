@@ -69,6 +69,10 @@ data class SuccessApiResponseMessage(
     val message: String
 )
 
+data class UploadImageResponse(
+    val message: String
+)
+
 // Enums for dropdowns
 enum class Position {
     INTERN, JUNIOR_DEVELOPER, SENIOR_DEVELOPER, TEAM_LEAD, MANAGER, HR, CTO, CEO, OTHERS
@@ -81,3 +85,4 @@ enum class Department {
 enum class Gender {
     M, F
 }
+

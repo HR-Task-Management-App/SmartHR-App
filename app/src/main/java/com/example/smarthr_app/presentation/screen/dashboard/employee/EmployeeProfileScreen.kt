@@ -84,6 +84,8 @@ fun EmployeeProfileScreen(
     val user by authViewModel.user.collectAsState(initial = null)
     val uploadImageState by authViewModel.uploadImageState.collectAsState(initial = null)
 
+    // Track local image state for instant updates
+    var localImageUri by remember { mutableStateOf<Uri?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     // Image picker launcher
@@ -91,6 +93,7 @@ fun EmployeeProfileScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            localImageUri = it // Set local image immediately
             authViewModel.uploadProfileImage(context, it)
         }
     }
@@ -100,14 +103,34 @@ fun EmployeeProfileScreen(
         when (val state = uploadImageState) {
             is Resource.Success -> {
                 ToastHelper.showSuccessToast(context, "Profile image updated successfully!")
+                localImageUri = null // Clear local image after successful upload
                 authViewModel.clearUploadImageState()
-                authViewModel.refreshProfile()
+                // Profile will be automatically updated via the repository
             }
+
             is Resource.Error -> {
-                ToastHelper.showErrorToast(context, "Failed to upload image: ${state.message}")
+                when {
+                    state.message.contains("Network error", ignoreCase = true) -> {
+                        // Handle potential false positive network error
+                        authViewModel.refreshProfile()
+                        ToastHelper.showSuccessToast(context, "Image uploaded! Refreshing...")
+                    }
+
+                    else -> {
+                        ToastHelper.showErrorToast(context, state.message)
+                    }
+                }
+                localImageUri = null // Clear local image on error
                 authViewModel.clearUploadImageState()
             }
-            else -> {}
+
+            is Resource.Loading -> {
+                // Loading state is handled by the UI
+            }
+
+            null -> {
+                // Initial state
+            }
         }
     }
 
@@ -190,9 +213,12 @@ fun EmployeeProfileScreen(
                         modifier = Modifier.size(100.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!user?.imageUrl.isNullOrBlank()) {
+                        // Use local image if available, otherwise use user image
+                        val imageToShow = localImageUri?.toString() ?: user?.imageUrl
+
+                        if (!imageToShow.isNullOrBlank()) {
                             AsyncImage(
-                                model = user?.imageUrl,
+                                model = imageToShow,
                                 contentDescription = "Profile Picture",
                                 modifier = Modifier
                                     .size(100.dp)

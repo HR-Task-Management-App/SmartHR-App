@@ -17,6 +17,7 @@ import com.example.smarthr_app.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -42,11 +43,12 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _leaveCompanyState = MutableStateFlow<Resource<UserDto>?>(null)
     val leaveCompanyState: StateFlow<Resource<UserDto>?> = _leaveCompanyState
 
-    private val _uploadImageState = MutableStateFlow<Resource<UserDto>?>(null)
-    val uploadImageState: StateFlow<Resource<UserDto>?> = _uploadImageState
+    private val _uploadImageState = MutableStateFlow<Resource<String>?>(null)
+    val uploadImageState: StateFlow<Resource<String>?> = _uploadImageState.asStateFlow()
 
     val user: Flow<User?> = authRepository.user
     val isLoggedIn: Flow<Boolean> = authRepository.isLoggedIn
+
 
     fun login(request: LoginRequest) {
         viewModelScope.launch {
@@ -81,7 +83,6 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         }
     }
 
-
     fun registerUser(request: UserRegisterRequest) {
         viewModelScope.launch {
             _registerState.value = Resource.Loading()
@@ -98,7 +99,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun updateProfile(request: UpdateProfileRequest) {
         viewModelScope.launch {
             _updateProfileState.value = Resource.Loading()
-            _updateProfileState.value = authRepository.updateProfile(request)
+            val result = authRepository.updateProfile(request)
+            _updateProfileState.value = result
+            if (result is Resource.Success) {
+                refreshProfile()
+            }
         }
     }
 
@@ -112,23 +117,37 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun updateCompanyCode(companyCode: String) {
         viewModelScope.launch {
             _updateCompanyState.value = Resource.Loading()
-            _updateCompanyState.value = authRepository.updateCompanyCode(companyCode)
+            val result = authRepository.updateCompanyCode(companyCode)
+            _updateCompanyState.value = result
+            if (result is Resource.Success) {
+                refreshProfile()
+            }
         }
     }
 
     fun leaveCompany() {
         viewModelScope.launch {
             _leaveCompanyState.value = Resource.Loading()
-            _leaveCompanyState.value = authRepository.leaveCompany()
+            val result = authRepository.leaveCompany()
+            _leaveCompanyState.value = result
+            if (result is Resource.Success) {
+                refreshProfile()
+            }
         }
     }
 
     fun removeFromWaitlist() {
         viewModelScope.launch {
             _leaveCompanyState.value = Resource.Loading()
-            _leaveCompanyState.value = authRepository.removeWaitlistCompany()
+            val result = authRepository.removeWaitlistCompany()
+            _leaveCompanyState.value = result
+            if (result is Resource.Success) {
+                refreshProfile()
+            }
         }
     }
+
+
 
     fun logout() {
         viewModelScope.launch {
@@ -161,4 +180,5 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun clearUploadImageState() {
         _uploadImageState.value = null
     }
+
 }

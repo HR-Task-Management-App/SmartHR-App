@@ -193,7 +193,7 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
         }
     }
 
-    suspend fun uploadProfileImage(context: Context, imageUri: Uri): Resource<UserDto> {
+    suspend fun uploadProfileImage(context: Context, imageUri: Uri): Resource<String> {
         return try {
             val token = dataStoreManager.token.first()
             if (token != null) {
@@ -208,12 +208,19 @@ class AuthRepository(private val dataStoreManager: DataStoreManager) {
                 file.delete()
 
                 if (response.isSuccessful) {
-                    response.body()?.let { userDto ->
-                        updateLocalUser(userDto)
-                        Resource.Success(userDto)
-                    } ?: Resource.Error("Upload successful but no user data received")
+                    response.body()?.let { uploadResponse ->
+                        // After successful upload, refresh user profile to get updated imageUrl
+                        val profileResponse = RetrofitInstance.api.getUserProfile("Bearer $token")
+                        if (profileResponse.isSuccessful) {
+                            profileResponse.body()?.let { userDto ->
+                                updateLocalUser(userDto)
+                            }
+                        }
+                        Resource.Success(uploadResponse.message)
+                    } ?: Resource.Error("Upload successful but no response received")
                 } else {
-                    Resource.Error("Failed to upload image: ${response.message()}")
+                    val errorMessage = parseErrorMessage(response.errorBody()?.string(), response.code())
+                    Resource.Error(errorMessage)
                 }
             } else {
                 Resource.Error("No authentication token found")
