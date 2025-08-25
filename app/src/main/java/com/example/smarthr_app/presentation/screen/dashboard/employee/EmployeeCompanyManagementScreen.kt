@@ -2,6 +2,7 @@ package com.example.smarthr_app.presentation.screen.dashboard.employee
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,19 +74,18 @@ fun EmployeeCompanyManagementScreen(
     var companyCode by remember { mutableStateOf("") }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showRemoveWaitlistDialog by remember { mutableStateOf(false) }
+    var isRefreshingProfile by remember { mutableStateOf(false) }
 
-    // Handle API responses with specific messages
+    // Auto-refresh user data when company state updates
     LaunchedEffect(updateCompanyState) {
         when (val state = updateCompanyState) {
             is Resource.Success -> {
-                // Check if user now has waitingCompanyCode or companyCode
-                if (state.data.waitingCompanyCode != null && state.data.companyCode == null) {
-                    ToastHelper.showSuccessToast(context, "Company code submitted! Wait for HR approval.")
-                } else if (state.data.companyCode != null) {
-                    ToastHelper.showSuccessToast(context, "Company code updated successfully!")
-                }
+                // Since the API returns 202 (Accepted) with a success message,
+                // we'll treat any Resource.Success as a successful submission
+                ToastHelper.showSuccessToast(context, "Company code submitted! Wait for HR approval.")
                 authViewModel.clearUpdateCompanyState()
-                authViewModel.refreshProfile()
+                isRefreshingProfile = true
+                authViewModel.refreshProfile() // Auto-refresh to get updated user data
                 companyCode = "" // Clear the input field
             }
             is Resource.Error -> {
@@ -95,248 +95,109 @@ fun EmployeeCompanyManagementScreen(
                             state.message.contains("invalid", ignoreCase = true) -> {
                         ToastHelper.showErrorToast(context, "Company code not found. Please check and try again.")
                     }
+                    state.message.contains("Network error", ignoreCase = true) -> {
+                        // This might be a false positive - check if it's actually successful by refreshing profile
+                        isRefreshingProfile = true
+                        authViewModel.refreshProfile()
+                        ToastHelper.showSuccessToast(context, "Request submitted! Checking status...")
+                    }
                     else -> {
                         ToastHelper.showErrorToast(context, state.message)
                     }
                 }
                 authViewModel.clearUpdateCompanyState()
             }
-            else -> {}
+            is Resource.Loading -> {
+                // Keep loading state visible
+            }
+            null -> {
+                // Initial state or cleared state
+            }
         }
     }
 
     LaunchedEffect(leaveCompanyState) {
         when (val state = leaveCompanyState) {
             is Resource.Success -> {
-                ToastHelper.showSuccessToast(context, "Left company successfully!")
+                ToastHelper.showSuccessToast(context, "Request processed successfully!")
                 authViewModel.clearLeaveCompanyState()
-                authViewModel.refreshProfile()
+                isRefreshingProfile = true
+                authViewModel.refreshProfile() // Auto-refresh
             }
             is Resource.Error -> {
-                ToastHelper.showErrorToast(context, state.message)
+                when {
+                    state.message.contains("Network error", ignoreCase = true) -> {
+                        // This might be a false positive - check if it's actually successful by refreshing profile
+                        isRefreshingProfile = true
+                        authViewModel.refreshProfile()
+                        ToastHelper.showSuccessToast(context, "Request processed! Checking status...")
+                    }
+                    else -> {
+                        ToastHelper.showErrorToast(context, state.message)
+                    }
+                }
                 authViewModel.clearLeaveCompanyState()
             }
             else -> {}
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-    ) {
-        // Top Bar
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = PrimaryPurple),
-            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = "Company Management",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+    // Monitor user changes to detect when status is updated
+    LaunchedEffect(user?.waitingCompanyCode, user?.companyCode) {
+        if (isRefreshingProfile) {
+            // Stop the loading indicator when user data is refreshed
+            isRefreshingProfile = false
         }
+    }
 
-        // Content
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
         ) {
-            // Current Status Card
+            // Top Bar
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                colors = CardDefaults.cardColors(containerColor = PrimaryPurple),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Current Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryPurple
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    when {
-                        !user?.companyCode.isNullOrBlank() -> {
-                            // Approved Status
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "✅ Approved Employee",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF4CAF50)
-                                    )
-                                    Text(
-                                        text = "Company Code: ${user?.companyCode}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Leave Company Button
-                            OutlinedButton(
-                                onClick = { showLeaveDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ExitToApp,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Leave Company")
-                            }
-                        }
-                        !user?.waitingCompanyCode.isNullOrBlank() -> {
-                            // Waiting Status
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFF9800),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "⏳ Waiting for Approval",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFF9800)
-                                    )
-                                    Text(
-                                        text = "Company Code: ${user?.waitingCompanyCode}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "HR will review your request soon",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // Update Company Code Button
-                                OutlinedButton(
-                                    onClick = { /* Show update section */ },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = PrimaryPurple
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Update")
-                                }
-
-                                // Remove from Waitlist Button
-                                OutlinedButton(
-                                    onClick = { showRemoveWaitlistDialog = true },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.RemoveCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Remove")
-                                }
-                            }
-                        }
-                        else -> {
-                            // No Company Status
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "ℹ️ No Company Assigned",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "Join a company to start working with your team",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "Company Management",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            // Add/Update Company Code Card
-            if (user?.companyCode.isNullOrBlank()) {
+            // Content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Current Status Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -346,7 +207,7 @@ fun EmployeeCompanyManagementScreen(
                         modifier = Modifier.padding(20.dp)
                     ) {
                         Text(
-                            text = if (user?.waitingCompanyCode.isNullOrBlank()) "Join a Company" else "Update Company Code",
+                            text = "Current Status",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = PrimaryPurple
@@ -354,68 +215,249 @@ fun EmployeeCompanyManagementScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "Enter the company code provided by your HR to join the company.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Company Code Input
-                        OutlinedTextField(
-                            value = companyCode,
-                            onValueChange = { companyCode = it },
-                            label = { Text("Company Code") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                            supportingText = {
-                                Text("Ask your HR for the company code")
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                focusedLabelColor = PrimaryPurple
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Submit Button
-                        Button(
-                            onClick = {
-                                if (companyCode.isNotBlank()) {
-                                    val validation = ValidationUtils.validateCompanyCode(companyCode)
-                                    if (validation.isValid) {
-                                        authViewModel.updateCompanyCode(companyCode.trim())
-                                    } else {
-                                        ToastHelper.showErrorToast(context, validation.errorMessage)
+                        when {
+                            !user?.companyCode.isNullOrBlank() -> {
+                                // Approved Status
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF4CAF50),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "✅ Approved Employee",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF4CAF50)
+                                        )
+                                        Text(
+                                            text = "Company Code: ${user?.companyCode}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
-                                } else {
-                                    ToastHelper.showErrorToast(context, "Please enter a company code")
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PrimaryPurple
-                            ),
-                            enabled = updateCompanyState !is Resource.Loading
-                        ) {
-                            if (updateCompanyState is Resource.Loading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Leave Company Button
+                                OutlinedButton(
+                                    onClick = { showLeaveDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ExitToApp,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Leave Company")
+                                }
                             }
-                            Text(
-                                text = if (user?.waitingCompanyCode.isNullOrBlank()) "Join Company" else "Update Company Code"
-                            )
+                            !user?.waitingCompanyCode.isNullOrBlank() -> {
+                                // Waiting Status
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF9800),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "⏳ Waiting for Approval",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFFF9800)
+                                        )
+                                        Text(
+                                            text = "Company Code: ${user?.waitingCompanyCode}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "HR will review your request soon",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Remove from Waitlist Button (Always show for waitlist)
+                                OutlinedButton(
+                                    onClick = { showRemoveWaitlistDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RemoveCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Remove Company Request")
+                                }
+                            }
+                            else -> {
+                                // No Company Status
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "ℹ️ No Company Assigned",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "Join a company to start working with your team",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Join Company Code Card (Only show when no company assigned)
+                if (user?.companyCode.isNullOrBlank() && user?.waitingCompanyCode.isNullOrBlank()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp)
+                        ) {
+                            Text(
+                                text = "Join a Company",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryPurple
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "Enter the company code provided by your HR to join the company.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Company Code Input
+                            OutlinedTextField(
+                                value = companyCode,
+                                onValueChange = { companyCode = it },
+                                label = { Text("Company Code") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                                supportingText = {
+                                    Text("Ask your HR for the company code")
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = PrimaryPurple,
+                                    focusedLabelColor = PrimaryPurple
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Submit Button
+                            Button(
+                                onClick = {
+                                    if (companyCode.isNotBlank()) {
+                                        val validation = ValidationUtils.validateCompanyCode(companyCode)
+                                        if (validation.isValid) {
+                                            authViewModel.updateCompanyCode(companyCode.trim())
+                                        } else {
+                                            ToastHelper.showErrorToast(context, validation.errorMessage)
+                                        }
+                                    } else {
+                                        ToastHelper.showErrorToast(context, "Please enter a company code")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryPurple
+                                ),
+                                enabled = updateCompanyState !is Resource.Loading
+                            ) {
+                                if (updateCompanyState is Resource.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("Join Company")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        // Center Loading Indicator
+        if (isRefreshingProfile ||
+            (updateCompanyState is Resource.Loading && user?.waitingCompanyCode.isNullOrBlank()) ||
+            (leaveCompanyState is Resource.Loading && !user?.waitingCompanyCode.isNullOrBlank())) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier.padding(32.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = PrimaryPurple
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Processing request...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -473,7 +515,7 @@ fun EmployeeCompanyManagementScreen(
             onDismissRequest = { showRemoveWaitlistDialog = false },
             title = {
                 Text(
-                    text = "Remove from Waitlist",
+                    text = "Remove Company Request",
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 )

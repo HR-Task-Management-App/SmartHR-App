@@ -26,6 +26,7 @@ import com.example.smarthr_app.data.model.TaskRequest
 import com.example.smarthr_app.data.model.TaskResponse
 import com.example.smarthr_app.data.model.UpdateProfileRequest
 import com.example.smarthr_app.data.model.UpdateTaskStatusRequest
+import com.example.smarthr_app.data.model.UploadImageResponse
 import com.example.smarthr_app.data.model.UserDto
 import com.example.smarthr_app.data.model.UserInfo
 import com.example.smarthr_app.data.model.UserRegisterRequest
@@ -72,7 +73,7 @@ interface ApiService {
     suspend fun uploadProfileImage(
         @Header("Authorization") token: String,
         @Part image: MultipartBody.Part
-    ): Response<UserDto>
+    ): Response<UploadImageResponse>
 
     @GET("companies/empWaitlist")
     suspend fun getCompanyWaitlistEmployees(@Header("Authorization") token: String): Response<CompanyWaitlistResponse>

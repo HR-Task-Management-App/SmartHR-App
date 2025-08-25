@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,10 +28,15 @@ import com.example.smarthr_app.utils.ToastHelper
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
+import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
+
 
 @Composable
 fun EmployeeAttendanceScreen(
-    attendanceViewModel: AttendanceViewModel
+    attendanceViewModel: AttendanceViewModel,
+    authViewModel: AuthViewModel,
+    onNavigateToCompanyManagement: () -> Unit
 ) {
     val context = LocalContext.current
     val locationHelper = remember { LocationHelper(context) }
@@ -41,8 +45,59 @@ fun EmployeeAttendanceScreen(
     val officeLocationState by attendanceViewModel.officeLocationState.collectAsState(initial = null)
     val markAttendanceState by attendanceViewModel.markAttendanceState.collectAsState(initial = null)
     val attendanceHistoryState by attendanceViewModel.attendanceHistoryState.collectAsState(initial = null)
+    val user by authViewModel.user.collectAsState(initial = null)
+
+    // Check if user has joined a company
+    val hasJoinedCompany = !user?.companyCode.isNullOrBlank()
+    val isWaitlisted = !user?.waitingCompanyCode.isNullOrBlank()
 
     var isLocationPermissionGranted by remember { mutableStateOf(false) }
+
+    // Show lock screen if user hasn't joined a company
+    if (!hasJoinedCompany && !isWaitlisted) {
+        CompanyLockScreen(
+            title = "Attendance Feature Locked",
+            onJoinCompanyClick = onNavigateToCompanyManagement
+        )
+        return
+    }
+
+    // Show waiting message if user is waitlisted
+    if (isWaitlisted && !hasJoinedCompany) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Waiting for approval",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Waiting for HR Approval",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your request to join ${user?.waitingCompanyCode} is pending. HR will review your request soon.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+        return
+    }
 
     // Get current attendance status from history
     val currentAttendanceStatus = remember(attendanceHistoryState) {
@@ -80,9 +135,12 @@ fun EmployeeAttendanceScreen(
             )
         )
 
-        // Load initial data
-        attendanceViewModel.loadOfficeLocation()
-        attendanceViewModel.loadAttendanceHistory()
+        // Load initial data only if user has joined company
+        if (hasJoinedCompany) {
+            attendanceViewModel.loadOfficeLocation()
+            attendanceViewModel.loadAttendanceHistory()
+        }
+
     }
 
     // Handle mark attendance response

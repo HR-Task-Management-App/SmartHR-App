@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.smarthr_app.data.model.*
+import com.example.smarthr_app.presentation.components.CompanyLockScreen
 import com.example.smarthr_app.presentation.theme.PrimaryPurple
+import com.example.smarthr_app.presentation.viewmodel.AuthViewModel
 import com.example.smarthr_app.presentation.viewmodel.TaskViewModel
 import com.example.smarthr_app.utils.Resource
 import com.example.smarthr_app.utils.ToastHelper
@@ -32,15 +34,70 @@ import java.util.*
 @Composable
 fun EmployeeTaskScreen(
     taskViewModel: TaskViewModel,
-    onNavigateToTaskDetail: (String) -> Unit
+    authViewModel: AuthViewModel, // Add AuthViewModel
+    onNavigateToTaskDetail: (String) -> Unit,
+    onNavigateToCompanyManagement: () -> Unit // Add navigation to company management
 ) {
     val context = LocalContext.current
     val tasksState by taskViewModel.tasksState.collectAsState(initial = null)
+    val user by authViewModel.user.collectAsState(initial = null)
 
     var selectedFilter by remember { mutableStateOf("All") }
 
+    // Check if user has joined a company
+    val hasJoinedCompany = !user?.companyCode.isNullOrBlank()
+    val isWaitlisted = !user?.waitingCompanyCode.isNullOrBlank()
+
     LaunchedEffect(Unit) {
-        taskViewModel.loadUserTasks()
+        if (hasJoinedCompany) {
+            taskViewModel.loadUserTasks()
+        }
+    }
+
+    // Show lock screen if user hasn't joined a company
+    if (!hasJoinedCompany && !isWaitlisted) {
+        CompanyLockScreen(
+            title = "Tasks Feature Locked",
+            onJoinCompanyClick = onNavigateToCompanyManagement
+        )
+        return
+    }
+
+    // Show waiting message if user is waitlisted
+    if (isWaitlisted && !hasJoinedCompany) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Waiting for approval",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Waiting for HR Approval",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your request to join ${user?.waitingCompanyCode} is pending. HR will review your request soon.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+        return
     }
 
     Column(
@@ -207,6 +264,7 @@ fun EmployeeTaskScreen(
     }
 }
 
+// Keep the existing EmployeeTaskCard and other functions unchanged...
 @Composable
 fun EmployeeTaskCard(
     task: TaskResponse,

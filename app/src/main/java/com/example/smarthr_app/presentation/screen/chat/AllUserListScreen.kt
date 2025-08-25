@@ -50,8 +50,11 @@ fun AllUserListScreen(
     val user by authViewModel.user.collectAsState(initial = null)
     val userListState by chatViewModel.userList.collectAsState()
 
+    // Only load users if user has joined a company
     LaunchedEffect(Unit) {
-        chatViewModel.getAllUser()
+        if (!user?.companyCode.isNullOrBlank()) {
+            chatViewModel.getAllUser()
+        }
     }
 
     Column(
@@ -123,8 +126,6 @@ fun AllUserListScreen(
         }
     }
 }
-
-
 
 @Composable
 fun UserListItem(user: UserInfo, onClick: () -> Unit) {

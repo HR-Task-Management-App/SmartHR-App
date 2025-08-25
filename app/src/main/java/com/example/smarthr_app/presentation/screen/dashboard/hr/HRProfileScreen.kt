@@ -83,13 +83,16 @@ fun HRProfileScreen(
     val user by authViewModel.user.collectAsState(initial = null)
     val uploadImageState by authViewModel.uploadImageState.collectAsState(initial = null)
 
+    var localImageUri by remember { mutableStateOf<Uri?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            selectedImageUri = it
             authViewModel.uploadProfileImage(context, it)
         }
     }
@@ -99,14 +102,34 @@ fun HRProfileScreen(
         when (val state = uploadImageState) {
             is Resource.Success -> {
                 ToastHelper.showSuccessToast(context, "Profile image updated successfully!")
+                localImageUri = null // Clear local image after successful upload
                 authViewModel.clearUploadImageState()
-                authViewModel.refreshProfile()
+                // Profile will be automatically updated via the repository
             }
+
             is Resource.Error -> {
-                ToastHelper.showErrorToast(context, "Failed to upload image: ${state.message}")
+                when {
+                    state.message.contains("Network error", ignoreCase = true) -> {
+                        // Handle potential false positive network error
+                        authViewModel.refreshProfile()
+                        ToastHelper.showSuccessToast(context, "Image uploaded! Refreshing...")
+                    }
+
+                    else -> {
+                        ToastHelper.showErrorToast(context, state.message)
+                    }
+                }
+                localImageUri = null // Clear local image on error
                 authViewModel.clearUploadImageState()
             }
-            else -> {}
+
+            is Resource.Loading -> {
+                // Loading state is handled by the UI
+            }
+
+            null -> {
+                // Initial state
+            }
         }
     }
 
@@ -184,9 +207,12 @@ fun HRProfileScreen(
                         modifier = Modifier.size(100.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!user?.imageUrl.isNullOrBlank()) {
+                        // Show selected image immediately or user's current image
+                        val imageToShow = selectedImageUri?.toString() ?: user?.imageUrl
+
+                        if (!imageToShow.isNullOrBlank()) {
                             AsyncImage(
-                                model = user?.imageUrl,
+                                model = imageToShow,
                                 contentDescription = "Profile Picture",
                                 modifier = Modifier
                                     .size(100.dp)
