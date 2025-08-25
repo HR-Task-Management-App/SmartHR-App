@@ -1,5 +1,6 @@
 package com.example.smarthr_app.data.repository
 
+import android.util.Log
 import com.example.smarthr_app.data.local.DataStoreManager
 import com.example.smarthr_app.data.model.MeetingCreateRequestDto
 import com.example.smarthr_app.data.model.MeetingResponseDto
@@ -31,6 +32,7 @@ class MeetingRepository(private val dataStoreManager: DataStoreManager) {
                     participants = participants
                 )
                 val response = RetrofitInstance.api.createMeeting("Bearer $token", request)
+                Log.i("AuthVik", "$response $token")
                 if (response.isSuccessful) {
                     response.body()?.let {
                         Resource.Success(it)

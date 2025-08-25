@@ -386,7 +386,7 @@ fun HomeTab(
                             onClick = {
                                 onNavigateToChatList()
                                 if (!user?.companyCode.isNullOrBlank()) {
-                                    chatViewModel.getMyChatList(companyCode = user?.companyCode!!)
+                                    chatViewModel.getMyChatList(companyCode = user.companyCode)
                                 }
                             }
                         ) {

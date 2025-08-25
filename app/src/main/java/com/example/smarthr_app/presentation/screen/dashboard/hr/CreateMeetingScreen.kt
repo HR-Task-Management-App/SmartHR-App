@@ -1,5 +1,6 @@
 package com.example.smarthr_app.presentation.screen.dashboard.hr
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -119,7 +120,7 @@ fun CreateMeetingScreen(
 
     LaunchedEffect(Unit) {
         companyViewModel.loadApprovedEmployees()
-        if (isEditing && meetingId != null) {
+        if (isEditing) {
             meetingViewModel.loadMeetingDetail(meetingId)
         }
     }
@@ -549,10 +550,10 @@ fun CreateMeetingScreen(
             Button(
                 onClick = {
                     if (validateForm(title, description, startDate, startTime, endDate, endTime, selectedEmployees)) {
-                        val startDateTime = "$startDate" + "T$startTime:00"
-                        val endDateTime = "$endDate" + "T$endTime:00"
+                        val startDateTime = startDate + "T$startTime:00"
+                        val endDateTime = endDate + "T$endTime:00"
                         val participantIds = selectedEmployees.mapNotNull { employee ->
-                            employee.userId?.takeIf { it.isNotBlank() }
+                            employee.userId.takeIf { it.isNotBlank() }
                         }
 
                         if (isEditing && meetingId != null) {
@@ -574,6 +575,7 @@ fun CreateMeetingScreen(
                                 meetingLink = meetingLink.takeIf { it.isNotBlank() },
                                 participants = participantIds
                             )
+                            Log.i("AuthVik","$startDateTime $endDateTime")
                         }
                     } else {
                         ToastHelper.showErrorToast(context, "Please fill all required fields")

@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,6 +118,12 @@ fun ChatScreen(
                 otherUserId = receiverId
             )
             chatViewModel.markMessagesAsSeen(it, userId)
+            chatViewModel.sendSeenMessageInfo(it, userId)
+        }
+    }
+
+    LaunchedEffect(chatMessages?.size) {
+        chatId?.let {
             chatViewModel.sendSeenMessageInfo(it, userId)
         }
     }
@@ -235,6 +242,7 @@ fun MessageInputBox(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent
             ),
+            textStyle = TextStyle(color = Color.Black),
             singleLine = true
         )
         IconButton(onClick = onSend) {
