@@ -73,7 +73,9 @@ fun NavGraph(
     val attendanceViewModel: AttendanceViewModel = viewModel { AttendanceViewModel(attendanceRepository) }
 
     val chatViewModel: ChatViewModel = viewModel { ChatViewModel(chatRepository) }
-    val meetingRepository = MeetingRepository(dataStoreManager)
+
+    // Updated to pass context
+    val meetingRepository = MeetingRepository(dataStoreManager, context)
     val meetingViewModel: MeetingViewModel = viewModel { MeetingViewModel(meetingRepository) }
 
     NavHost(

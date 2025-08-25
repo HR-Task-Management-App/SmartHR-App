@@ -48,6 +48,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -107,15 +109,15 @@ fun CreateMeetingScreen(
     var endTime by remember { mutableStateOf("") }
     var selectedEmployees by remember { mutableStateOf<List<UserDto>>(emptyList()) }
 
+    // New state for auto-generating Google Meet
+    var autoGenerateMeet by remember { mutableStateOf(true) }
+
     // Dialog states
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
     var showEmployeeSelectionDialog by remember { mutableStateOf(false) }
-
-    // Remove the automatic time picker LaunchedEffects - they prevent re-editing
-    // Users can now click on the time field to edit it
 
     LaunchedEffect(Unit) {
         companyViewModel.loadApprovedEmployees()
@@ -133,6 +135,8 @@ fun CreateMeetingScreen(
                     title = meeting.title
                     description = meeting.description
                     meetingLink = meeting.meetingLink ?: ""
+                    // If editing and there's a manual link, disable auto-generate
+                    autoGenerateMeet = meeting.meetingLink.isNullOrBlank()
 
                     val startDateTime = LocalDateTime.parse(meeting.startTime)
                     startDate = startDateTime.toLocalDate().toString()
@@ -161,10 +165,17 @@ fun CreateMeetingScreen(
         val state = if (isEditing) updateMeetingState else createMeetingState
         when (state) {
             is Resource.Success -> {
-                ToastHelper.showSuccessToast(
-                    context,
-                    if (isEditing) "Meeting updated successfully!" else "Meeting created successfully!"
-                )
+                if (autoGenerateMeet && !isEditing) {
+                    ToastHelper.showMeetLinkToast(
+                        context,
+                        "Meeting created with Google Meet link!"
+                    )
+                } else {
+                    ToastHelper.showSuccessToast(
+                        context,
+                        if (isEditing) "Meeting updated successfully!" else "Meeting created successfully!"
+                    )
+                }
                 if (isEditing) {
                     meetingViewModel.clearUpdateMeetingState()
                 } else {
@@ -175,12 +186,23 @@ fun CreateMeetingScreen(
             is Resource.Error -> {
                 // Check if it's a time conflict error
                 val errorMessage = state.message
-                if (errorMessage.contains("conflict", ignoreCase = true) ||
-                    errorMessage.contains("overlap", ignoreCase = true) ||
-                    errorMessage.contains("time", ignoreCase = true)) {
-                    ToastHelper.showErrorToast(context, "⚠️ Time Conflict: $errorMessage")
-                } else {
-                    ToastHelper.showErrorToast(context, errorMessage)
+                when {
+                    errorMessage.contains("Calendar permission", ignoreCase = true) -> {
+                        ToastHelper.showErrorToast(context, "📅 Calendar permission required. Please sign out and sign in again to grant calendar access.")
+                    }
+                    errorMessage.contains("Google Meet", ignoreCase = true) -> {
+                        ToastHelper.showErrorToast(context, "🎥 Google Meet generation failed: $errorMessage. Try manual link entry.")
+                        // Automatically switch to manual mode if Google Meet fails
+                        autoGenerateMeet = false
+                    }
+                    errorMessage.contains("conflict", ignoreCase = true) ||
+                            errorMessage.contains("overlap", ignoreCase = true) ||
+                            errorMessage.contains("time", ignoreCase = true) -> {
+                        ToastHelper.showErrorToast(context, "⚠️ Time Conflict: $errorMessage")
+                    }
+                    else -> {
+                        ToastHelper.showErrorToast(context, errorMessage)
+                    }
                 }
 
                 if (isEditing) {
@@ -282,22 +304,95 @@ fun CreateMeetingScreen(
                         )
                     )
 
-                    OutlinedTextField(
-                        value = meetingLink,
-                        onValueChange = { meetingLink = it },
-                        label = { Text("Meeting Link (Optional)") },
-                        placeholder = { Text("https://meet.google.com/xxx-xxxx-xxx") },
+                    // Auto-generate Google Meet toggle
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryPurple,
-                            focusedLabelColor = PrimaryPurple
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (autoGenerateMeet)
+                                PrimaryPurple.copy(alpha = 0.1f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "🎥",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = "Auto-generate Google Meet",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (autoGenerateMeet) PrimaryPurple else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (autoGenerateMeet)
+                                        "Google Meet link will be automatically created"
+                                    else
+                                        "Enter meeting link manually below",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (autoGenerateMeet)
+                                        PrimaryPurple.copy(alpha = 0.8f)
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = autoGenerateMeet,
+                                onCheckedChange = {
+                                    autoGenerateMeet = it
+                                    if (it) {
+                                        meetingLink = "" // Clear manual link when switching to auto
+                                    }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PrimaryPurple,
+                                    checkedTrackColor = PrimaryPurple.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+                    }
+
+                    // Show manual meeting link field only if auto-generate is disabled
+                    if (!autoGenerateMeet) {
+                        OutlinedTextField(
+                            value = meetingLink,
+                            onValueChange = { meetingLink = it },
+                            label = { Text("Meeting Link") },
+                            placeholder = { Text("https://meet.google.com/xxx-xxxx-xxx") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PrimaryPurple,
+                                focusedLabelColor = PrimaryPurple
+                            ),
+                            supportingText = {
+                                Text(
+                                    text = "Enter Google Meet, Zoom, or any other meeting link",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         )
-                    )
+                    }
                 }
             }
 
-            // Date & Time Section - Updated with separate date and time fields
+            // Date & Time Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -325,6 +420,7 @@ fun CreateMeetingScreen(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Start Date") },
+                            placeholder = { Text("Select date") },
                             trailingIcon = {
                                 IconButton(onClick = { showStartDatePicker = true }) {
                                     Icon(Icons.Default.DateRange, contentDescription = "Select Date")
@@ -342,7 +438,7 @@ fun CreateMeetingScreen(
                             )
                         )
 
-                        // Start Time - Always editable
+                        // Start Time
                         OutlinedTextField(
                             value = startTime,
                             onValueChange = {},
@@ -378,6 +474,7 @@ fun CreateMeetingScreen(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("End Date") },
+                            placeholder = { Text("Select date") },
                             trailingIcon = {
                                 IconButton(onClick = { showEndDatePicker = true }) {
                                     Icon(Icons.Default.DateRange, contentDescription = "Select Date")
@@ -395,7 +492,7 @@ fun CreateMeetingScreen(
                             )
                         )
 
-                        // End Time - Always editable
+                        // End Time
                         OutlinedTextField(
                             value = endTime,
                             onValueChange = {},
@@ -422,25 +519,39 @@ fun CreateMeetingScreen(
 
                     // Helper text
                     if (startDate.isNotBlank() && startTime.isBlank()) {
-                        Text(
-                            text = "👆 Please select start time",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PrimaryPurple,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFF9800).copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Text(
+                                text = "👆 Please select start time",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF9800),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
                     if (endDate.isNotBlank() && endTime.isBlank()) {
-                        Text(
-                            text = "👆 Please select end time",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PrimaryPurple,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFF9800).copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Text(
+                                text = "👆 Please select end time",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF9800),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            // Participants Section (keep the same as before)
+            // Participants Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -468,10 +579,11 @@ fun CreateMeetingScreen(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
+                                tint = PrimaryPurple
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Participants")
+                            Text("Add Participants", color = PrimaryPurple)
                         }
                     }
 
@@ -536,11 +648,18 @@ fun CreateMeetingScreen(
                             }
                         }
                     } else {
-                        Text(
-                            text = "No participants selected",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            )
+                        ) {
+                            Text(
+                                text = "👥 No participants selected. Tap 'Add Participants' to invite employees.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -548,11 +667,14 @@ fun CreateMeetingScreen(
             // Submit Button
             Button(
                 onClick = {
-                    if (validateForm(title, description, startDate, startTime, endDate, endTime, selectedEmployees)) {
+                    if (validateForm(title, description, startDate, startTime, endDate, endTime, selectedEmployees, autoGenerateMeet, meetingLink)) {
                         val startDateTime = "$startDate" + "T$startTime:00"
                         val endDateTime = "$endDate" + "T$endTime:00"
                         val participantIds = selectedEmployees.mapNotNull { employee ->
                             employee.userId?.takeIf { it.isNotBlank() }
+                        }
+                        val participantEmails = selectedEmployees.mapNotNull { employee ->
+                            employee.email?.takeIf { it.isNotBlank() }
                         }
 
                         if (isEditing && meetingId != null) {
@@ -562,18 +684,31 @@ fun CreateMeetingScreen(
                                 description = description,
                                 startTime = startDateTime,
                                 endTime = endDateTime,
-                                meetingLink = meetingLink.takeIf { it.isNotBlank() },
+                                meetingLink = if (autoGenerateMeet) null else meetingLink.takeIf { it.isNotBlank() },
                                 participants = participantIds
                             )
                         } else {
-                            meetingViewModel.createMeeting(
-                                title = title,
-                                description = description,
-                                startTime = startDateTime,
-                                endTime = endDateTime,
-                                meetingLink = meetingLink.takeIf { it.isNotBlank() },
-                                participants = participantIds
-                            )
+                            if (autoGenerateMeet) {
+                                // Use the new auto-generate method
+                                meetingViewModel.createMeetingWithAutoMeet(
+                                    title = title,
+                                    description = description,
+                                    startTime = startDateTime,
+                                    endTime = endDateTime,
+                                    participants = participantIds,
+                                    participantEmails = participantEmails
+                                )
+                            } else {
+                                // Use the existing manual method
+                                meetingViewModel.createMeeting(
+                                    title = title,
+                                    description = description,
+                                    startTime = startDateTime,
+                                    endTime = endDateTime,
+                                    meetingLink = meetingLink.takeIf { it.isNotBlank() },
+                                    participants = participantIds
+                                )
+                            }
                         }
                     } else {
                         ToastHelper.showErrorToast(context, "Please fill all required fields")
@@ -589,12 +724,26 @@ fun CreateMeetingScreen(
                         modifier = Modifier.size(20.dp),
                         color = Color.White
                     )
-                } else {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isEditing) "Update Meeting" else "Create Meeting",
+                        text = if (autoGenerateMeet && !isEditing) "Creating with Google Meet..." else "Processing...",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                } else {
+                    if (autoGenerateMeet && !isEditing) {
+                        Text(
+                            text = "🎥 Create Meeting with Google Meet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = if (isEditing) "Update Meeting" else "Create Meeting",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -602,7 +751,7 @@ fun CreateMeetingScreen(
         }
     }
 
-    // Employee Selection Dialog (keep the same as before with search and select all)
+    // Employee Selection Dialog
     if (showEmployeeSelectionDialog) {
         EmployeeSelectionDialog(
             employees = when (val state = approvedEmployeesState) {
@@ -711,12 +860,26 @@ fun EmployeeSelectionDialog(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                Text(
-                    text = "Select Participants",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryPurple
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Select Participants",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryPurple
+                    )
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -954,7 +1117,8 @@ fun TimePickerDialog(
                 Text(
                     text = "Select Time",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPurple
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -998,13 +1162,22 @@ private fun validateForm(
     startTime: String,
     endDate: String,
     endTime: String,
-    selectedEmployees: List<UserDto>
+    selectedEmployees: List<UserDto>,
+    autoGenerateMeet: Boolean,
+    meetingLink: String
 ): Boolean {
-    return title.isNotBlank() &&
+    val basicValidation = title.isNotBlank() &&
             description.isNotBlank() &&
             startDate.isNotBlank() &&
             startTime.isNotBlank() &&
             endDate.isNotBlank() &&
             endTime.isNotBlank() &&
             selectedEmployees.isNotEmpty()
+
+    // If auto-generate is disabled, check if manual link is provided (optional)
+    return if (!autoGenerateMeet) {
+        basicValidation // Meeting link is optional even in manual mode
+    } else {
+        basicValidation
+    }
 }

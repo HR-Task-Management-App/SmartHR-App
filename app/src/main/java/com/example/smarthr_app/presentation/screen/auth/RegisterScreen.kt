@@ -71,6 +71,7 @@ import com.example.smarthr_app.utils.ValidationUtils
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,8 +104,11 @@ fun RegisterScreen(
         GoogleSignIn.getClient(
             context,
             GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(context.getString(R.string.web_client_id)) //public
+                .requestIdToken(context.getString(R.string.web_client_id))
                 .requestEmail()
+                .requestScopes(
+                    Scope("https://www.googleapis.com/auth/calendar.events")
+                )
                 .build()
         )
     }

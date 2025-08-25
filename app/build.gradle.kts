@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.kotlin.ksp)
 }
 
-
 android {
     namespace = "com.example.smarthr_app"
     compileSdk = 35
@@ -50,6 +49,16 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Add these excludes to resolve the dependency conflicts
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/license.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "/META-INF/notice.txt"
+            excludes += "/META-INF/ASL2.0"
+            excludes += "/META-INF/*.kotlin_module"
         }
     }
 }
@@ -98,9 +107,8 @@ dependencies {
     // Image loading with Coil
     implementation("io.coil-kt:coil-compose:2.4.0")
 
-//    Google Play Services Location
+    // Google Play Services Location
     implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation("com.google.android.gms:play-services-auth:21.4.0")
 
     //lottie json
     implementation(libs.lottie.compose)
@@ -108,5 +116,27 @@ dependencies {
     //websocket
     implementation("com.squareup.okhttp3:okhttp:5.1.0")
 
+    // Google Play Services Auth (use only one version)
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
+    // Google API Client Libraries - Updated versions for better compatibility
+    implementation("com.google.api-client:google-api-client-android:2.2.0") {
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+    }
+    implementation("com.google.apis:google-api-services-calendar:v3-rev20231123-2.0.0") {
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+    }
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0") {
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+    }
+    implementation("com.google.http-client:google-http-client-gson:1.44.1") {
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+    }
+
+    // Use OkHttp instead of Apache HttpClient (more compatible with Android)
+    implementation("com.google.http-client:google-http-client-android:1.44.1")
 }
